@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using Microsoft.Build.Framework;
+using Microsoft.Build.Framework.Profiler;
 using Microsoft.Build.Shared;
 
 using InvalidProjectFileException = Microsoft.Build.Exceptions.InvalidProjectFileException;
@@ -514,7 +515,13 @@ namespace Microsoft.Build.BackEnd.Logging
         /// <param name="projectEvaluationEventContext">Event context for the project.</param>
         /// <param name="projectFile">Project file being built</param>
         /// <exception cref="InternalErrorException">BuildEventContext is null</exception>
-        public void LogProjectEvaluationFinished(BuildEventContext projectEvaluationEventContext, string projectFile)
+        public void LogProjectEvaluationFinished(
+            BuildEventContext projectEvaluationEventContext,
+            string projectFile,
+            IEnumerable globalProperties,
+            IEnumerable properties,
+            IEnumerable items,
+            ProfilerResult? profilerResult)
         {
             lock (_lockObject)
             {
@@ -524,7 +531,11 @@ namespace Microsoft.Build.BackEnd.Logging
                     new ProjectEvaluationFinishedEventArgs(ResourceUtilities.GetResourceString("EvaluationFinished"), projectFile)
                     {
                         BuildEventContext = projectEvaluationEventContext,
-                        ProjectFile = projectFile
+                        ProjectFile = projectFile,
+                        ProfilerResult = profilerResult,
+                        GlobalProperties = globalProperties,
+                        Properties = properties,
+                        Items = items
                     };
                 ProcessLoggingEvent(buildEvent);
             }

@@ -2,12 +2,15 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 
-using Microsoft.Build.Framework;
 using Microsoft.Build.BackEnd;
+using Microsoft.Build.Collections;
+using Microsoft.Build.Evaluation;
+using Microsoft.Build.Framework;
 #if FEATURE_APPDOMAIN
 using TaskEngineAssemblyResolver = Microsoft.Build.BackEnd.Logging.TaskEngineAssemblyResolver;
 #endif
@@ -95,6 +98,16 @@ namespace Microsoft.Build.Shared
         /// Event is a TaskParameterEventArgs
         /// </summary>
         TaskParameterEvent = 13,
+
+        /// <summary>
+        /// Event is a ProjectEvaluationStartedEventArgs
+        /// </summary>
+        ProjectEvaluationStartedEvent = 14,
+
+        /// <summary>
+        /// Event is a ProjectEvaluationFinishedEventArgs
+        /// </summary>
+        ProjectEvaluationFinishedEvent = 15
     }
     #endregion
 
@@ -493,6 +506,10 @@ namespace Microsoft.Build.Shared
 #if !TASKHOST // MSBuildTaskHost is targeting Microsoft.Build.Framework.dll 3.5
                 case LoggingEventType.TaskParameterEvent:
                     return new TaskParameterEventArgs(0, null, null, true, default);
+                case LoggingEventType.ProjectEvaluationStartedEvent:
+                    return new ProjectEvaluationStartedEventArgs();
+                case LoggingEventType.ProjectEvaluationFinishedEvent:
+                    return new ProjectEvaluationFinishedEventArgs();
 #endif
                 default:
                     ErrorUtilities.VerifyThrow(false, "Should not get to the default of GetBuildEventArgFromId ID: " + _eventType);
@@ -531,6 +548,14 @@ namespace Microsoft.Build.Shared
             else if (eventType == typeof(ProjectStartedEventArgs))
             {
                 return LoggingEventType.ProjectStartedEvent;
+            }
+            else if (eventType == typeof(ProjectEvaluationFinishedEventArgs))
+            {
+                return LoggingEventType.ProjectEvaluationFinishedEvent;
+            }
+            else if (eventType == typeof(ProjectEvaluationStartedEventArgs))
+            {
+                return LoggingEventType.ProjectEvaluationStartedEvent;
             }
             else if (eventType == typeof(TargetStartedEventArgs))
             {
@@ -576,6 +601,17 @@ namespace Microsoft.Build.Shared
         /// </summary>
         private void WriteEventToStream(BuildEventArgs buildEvent, LoggingEventType eventType, ITranslator translator)
         {
+            if (eventType == LoggingEventType.ProjectEvaluationStartedEvent)
+            {
+                WriteProjectEvaluationStartedEventToStream((ProjectEvaluationStartedEventArgs)buildEvent, translator);
+                return;
+            }
+            else if (eventType == LoggingEventType.ProjectEvaluationFinishedEvent)
+            {
+                WriteProjectEvaluationFinishedEventToStream((ProjectEvaluationFinishedEventArgs)buildEvent, translator);
+                return;
+            }
+
             string message = buildEvent.Message;
             string helpKeyword = buildEvent.HelpKeyword;
             string senderName = buildEvent.SenderName;
@@ -715,6 +751,141 @@ namespace Microsoft.Build.Shared
             translator.TranslateEnum(ref importance, (int)importance);
         }
 
+        private void WriteProjectEvaluationStartedEventToStream(ProjectEvaluationStartedEventArgs args, ITranslator translator)
+        {
+            WriteEvaluationEvent(args, args.ProjectFile, translator);
+        }
+
+        private void WriteProjectEvaluationFinishedEventToStream(ProjectEvaluationFinishedEventArgs args, ITranslator translator)
+        {
+            WriteEvaluationEvent(args, args.ProjectFile, translator);
+
+            WriteProperties(args.GlobalProperties, translator);
+            WriteProperties(args.Properties, translator);
+            WriteItems(args.Items, translator);
+        }
+
+        private static void WriteEvaluationEvent(BuildStatusEventArgs args, string projectFile, ITranslator translator)
+        {
+            var buildEventContext = args.BuildEventContext;
+            translator.Translate(ref buildEventContext);
+            translator.Translate(ref args.timestamp);
+            translator.Translate(ref projectFile);
+        }
+
+        [ThreadStatic]
+        private static List<KeyValuePair<string, string>> reusablePropertyList;
+
+        [ThreadStatic]
+        private static List<IItem> reusableItemList;
+
+        private void WriteProperties(IEnumerable properties, ITranslator translator)
+        {
+            var writer = translator.Writer;
+            if (properties == null)
+            {
+                writer.Write((byte)0);
+                return;
+            }
+
+            if (reusablePropertyList == null)
+            {
+                reusablePropertyList = new List<KeyValuePair<string, string>>();
+            }
+
+            // it is expensive to access a ThreadStatic field every time
+            var list = reusablePropertyList;
+
+            foreach (var item in properties)
+            {
+                if (item is IProperty property && !string.IsNullOrEmpty(property.Name))
+                {
+                    list.Add(new KeyValuePair<string, string>(property.Name, property.EvaluatedValue ?? string.Empty));
+                }
+                else if (item is DictionaryEntry dictionaryEntry && dictionaryEntry.Key is string key && !string.IsNullOrEmpty(key))
+                {
+                    list.Add(new KeyValuePair<string, string>(key, dictionaryEntry.Value as string ?? string.Empty));
+                }
+            }
+
+            BinaryWriterExtensions.Write7BitEncodedInt(writer, list.Count);
+
+            foreach (var item in list)
+            {
+                writer.Write(item.Key);
+                writer.Write(item.Value);
+            }
+
+            list.Clear();
+        }
+
+        private void WriteItems(IEnumerable items, ITranslator translator)
+        {
+            var writer = translator.Writer;
+            if (items == null)
+            {
+                writer.Write((byte)0);
+                return;
+            }
+
+            if (reusableItemList == null)
+            {
+                reusableItemList = new List<IItem>();
+            }
+
+            var list = reusableItemList;
+
+            foreach (var item in items)
+            {
+                if (item is IItem iitem)
+                {
+                    list.Add(iitem);
+                }
+            }
+
+            BinaryWriterExtensions.Write7BitEncodedInt(writer, list.Count);
+
+            foreach (var item in list)
+            {
+                writer.Write(item.Key);
+                writer.Write(item.EvaluatedInclude);
+                WriteMetadata(item, writer);
+            }
+
+            list.Clear();
+        }
+
+        private void WriteMetadata(object item, BinaryWriter writer)
+        {
+            if (item is ITaskItem taskItem)
+            {
+                var metadata = taskItem.CloneCustomMetadata();
+                BinaryWriterExtensions.Write7BitEncodedInt(writer, metadata.Count);
+                foreach (var kvp in metadata)
+                {
+                    if (kvp is DictionaryEntry dictionaryEntry)
+                    {
+                        writer.Write(dictionaryEntry.Key as string ?? string.Empty);
+                        writer.Write(dictionaryEntry.Value as string ?? string.Empty);
+                    }
+                    else if (kvp is KeyValuePair<string, string> keyValurPair)
+                    {
+                        writer.Write(keyValurPair.Key ?? string.Empty);
+                        writer.Write(keyValurPair.Value ?? string.Empty);
+                    }
+                    else
+                    {
+                        writer.Write(string.Empty);
+                        writer.Write(string.Empty);
+                    }
+                }
+            }
+            else
+            {
+                writer.Write((byte)0);
+            }
+        }
+
         #endregion
 
         #region Reads from Stream
@@ -725,6 +896,15 @@ namespace Microsoft.Build.Shared
         /// </summary>
         private BuildEventArgs ReadEventFromStream(LoggingEventType eventType, ITranslator translator)
         {
+            if (eventType == LoggingEventType.ProjectEvaluationStartedEvent)
+            {
+                return ReadProjectEvaluationStartedEventFromStream(translator);
+            }
+            else if (eventType == LoggingEventType.ProjectEvaluationFinishedEvent)
+            {
+                return ReadProjectEvaluationFinishedEventFromStream(translator);
+            }
+
             string message = null;
             string helpKeyword = null;
             string senderName = null;
@@ -919,6 +1099,109 @@ namespace Microsoft.Build.Shared
 
             BuildMessageEventArgs buildEvent = new BuildMessageEventArgs(message, helpKeyword, senderName, importance);
             return buildEvent;
+        }
+
+        private ProjectEvaluationStartedEventArgs ReadProjectEvaluationStartedEventFromStream(ITranslator translator)
+        {
+            var args = new ProjectEvaluationStartedEventArgs();
+
+            ReadEvaluationEvent(args, translator, out string projectFile);
+            args.ProjectFile = projectFile;
+
+            return args;
+        }
+
+        private ProjectEvaluationFinishedEventArgs ReadProjectEvaluationFinishedEventFromStream(ITranslator translator)
+        {
+            var args = new ProjectEvaluationFinishedEventArgs();
+
+            ReadEvaluationEvent(args, translator, out string projectFile);
+            args.ProjectFile = projectFile;
+
+            args.GlobalProperties = ReadProperties(translator);
+            args.Properties = ReadProperties(translator);
+            args.Items = ReadItems(translator);
+
+            return args;
+        }
+
+        private void ReadEvaluationEvent(BuildStatusEventArgs args, ITranslator translator, out string projectFile)
+        {
+            BuildEventContext buildEventContext = null;
+            translator.Translate(ref buildEventContext);
+
+            DateTime timestamp = default;
+            translator.Translate(ref timestamp);
+
+            projectFile = null;
+            translator.Translate(ref projectFile);
+
+            args.BuildEventContext = buildEventContext;
+            args.timestamp = timestamp;
+        }
+
+        private IEnumerable ReadProperties(ITranslator translator)
+        {
+            var reader = translator.Reader;
+            int count = BinaryReaderExtensions.Read7BitEncodedInt(reader);
+            if (count == 0)
+            {
+                return Array.Empty<DictionaryEntry>();
+            }
+
+            var list = new ArrayList(count);
+            for (int i = 0; i < count; i++)
+            {
+                string key = reader.ReadString();
+                string value = reader.ReadString();
+                var entry = new DictionaryEntry(key, value);
+                list.Add(entry);
+            }
+
+            return list;
+        }
+
+        private IEnumerable ReadItems(ITranslator translator)
+        {
+            var reader = translator.Reader;
+
+            int count = BinaryReaderExtensions.Read7BitEncodedInt(reader);
+            if (count == 0)
+            {
+                return Array.Empty<DictionaryEntry>();
+            }
+
+            var list = new ArrayList(count);
+            for (int i = 0; i < count; i++)
+            {
+                string itemType = reader.ReadString();
+                string evaluatedValue = reader.ReadString();
+                var metadata = ReadMetadata(reader);
+                var taskItemData = new TaskItemData(evaluatedValue, metadata);
+                var entry = new DictionaryEntry(itemType, taskItemData);
+                list.Add(entry);
+            }
+
+            return list;
+        }
+
+        private IDictionary<string, string> ReadMetadata(BinaryReader reader)
+        {
+            int count = BinaryReaderExtensions.Read7BitEncodedInt(reader);
+            if (count == 0)
+            {
+                return null;
+            }
+
+            var list = SmallDictionary<string, string>.Create(count);
+            for (int i = 0; i < count; i++)
+            {
+                string key = reader.ReadString();
+                string value = reader.ReadString();
+                list.Add(key, value);
+            }
+
+            return list;
         }
 
         #endregion

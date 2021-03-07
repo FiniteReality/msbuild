@@ -382,8 +382,10 @@ namespace Microsoft.Build.Framework
     {
         public ProjectEvaluationFinishedEventArgs() { }
         public ProjectEvaluationFinishedEventArgs(string message, params object[] messageArgs) { }
+        public System.Collections.Generic.IEnumerable<System.Collections.DictionaryEntry> Items { get { throw null; } set { } }
         public Microsoft.Build.Framework.Profiler.ProfilerResult? ProfilerResult { get { throw null; } set { } }
         public string ProjectFile { get { throw null; } set { } }
+        public System.Collections.Generic.IEnumerable<System.Collections.DictionaryEntry> Properties { get { throw null; } set { } }
     }
     public partial class ProjectEvaluationStartedEventArgs : Microsoft.Build.Framework.BuildStatusEventArgs
     {

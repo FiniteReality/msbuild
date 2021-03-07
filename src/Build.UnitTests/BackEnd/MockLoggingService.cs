@@ -204,6 +204,16 @@ namespace Microsoft.Build.UnitTests.BackEnd
         }
 
         /// <summary>
+        /// Log properties and items on ProjectEvaluationFinishedEventArgs
+        /// instead of ProjectStartedEventArgs.
+        /// </summary>
+        public bool IncludeEvaluationPropertiesAndItems
+        {
+            get => false;
+            set { }
+        }
+
+        /// <summary>
         /// Should task events include task inputs?
         /// </summary>
         public bool IncludeTaskInputs

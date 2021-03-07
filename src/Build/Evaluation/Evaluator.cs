@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using System;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using ObjectModel = System.Collections.ObjectModel;
@@ -777,12 +778,100 @@ namespace Microsoft.Build.Evaluation
             }
 
             ErrorUtilities.VerifyThrow(_evaluationProfiler.IsEmpty(), "Evaluation profiler stack is not empty.");
-            _evaluationLoggingContext.LogBuildEvent(new ProjectEvaluationFinishedEventArgs(ResourceUtilities.GetResourceString("EvaluationFinished"), projectFile)
+
+            IEnumerable globalProperties = null;
+            IEnumerable properties = null;
+            IEnumerable items = null;
+
+            if (this._evaluationLoggingContext.LoggingService.IncludeEvaluationPropertiesAndItems)
             {
-                BuildEventContext = _evaluationLoggingContext.BuildEventContext,
-                ProjectFile = projectFile,
-                ProfilerResult = _evaluationProfiler.ProfiledResult
-            });
+                globalProperties = _data.GlobalPropertiesDictionary;
+                properties = _data.Properties;
+                items = _data.Items;
+            }
+
+            _evaluationLoggingContext.LogProjectEvaluationFinished(globalProperties, properties, items, _evaluationProfiler.ProfiledResult);
+        }
+
+        private IEnumerable<DictionaryEntry> GetProperties()
+        {
+            if (!Traits.Instance.EscapeHatches.LogPropertiesAndItemsAfterEvaluation)
+            {
+                return Array.Empty<DictionaryEntry>();
+            }
+
+            var properties = _data.Properties;
+            var list = new List<DictionaryEntry>(properties.Count);
+
+            foreach (var property in properties)
+            {
+                list.Add(new DictionaryEntry(property.Name, property.EvaluatedValue));
+            }
+
+            return list;
+        }
+
+        private IEnumerable<DictionaryEntry> GetItems()
+        {
+            if (!Traits.Instance.EscapeHatches.LogPropertiesAndItemsAfterEvaluation)
+            {
+                return Array.Empty<DictionaryEntry>();
+            }
+
+            var items = _data.Items;
+            var list = new List<DictionaryEntry>(items.Count);
+
+            foreach (var item in items)
+            {
+                var metadata = item.Metadata.ToDictionary(m => m.Key, m => EscapingUtilities.UnescapeAll(m.EscapedValue));
+                var taskItem = new TempTaskItem(item.EvaluatedInclude, metadata);
+                var entry = new DictionaryEntry(item.Key, taskItem);
+                list.Add(entry);
+            }
+
+            return list;
+        }
+
+        private class TempTaskItem : ITaskItem
+        {
+            public TempTaskItem(string evaluatedInclude, IDictionary<string, string> metadata)
+            {
+                ItemSpec = evaluatedInclude;
+                Metadata = metadata;
+            }
+
+            public string ItemSpec { get; set; }
+            public IDictionary<string, string> Metadata { get; }
+
+            public ICollection MetadataNames => (ICollection)Metadata.Keys;
+
+            public int MetadataCount => Metadata.Count;
+
+            public IDictionary CloneCustomMetadata()
+            {
+                return (IDictionary)Metadata;
+            }
+
+            public void CopyMetadataTo(ITaskItem destinationItem)
+            {
+                throw new NotImplementedException();
+            }
+
+            public string GetMetadata(string metadataName)
+            {
+                Metadata.TryGetValue(metadataName, out var result);
+                return result;
+            }
+
+            public void RemoveMetadata(string metadataName)
+            {
+                throw new NotImplementedException();
+            }
+
+            public void SetMetadata(string metadataName, string metadataValue)
+            {
+                throw new NotImplementedException();
+            }
         }
 
         private void CollectProjectCachePlugins()

@@ -197,6 +197,12 @@ namespace Microsoft.Build.BackEnd.Logging
         private bool? _includeEvaluationProfile;
 
         /// <summary>
+        /// Whether to log properties and items on ProjectEvaluationFinished
+        /// instead of ProjectStarted
+        /// </summary>
+        private bool _includeEvaluationPropertiesAndItems;
+
+        /// <summary>
         /// Whether to include task inputs in task events.
         /// </summary>
         private bool? _includeTaskInputs;
@@ -491,6 +497,16 @@ namespace Microsoft.Build.BackEnd.Logging
         {
             get => _includeEvaluationProfile ??= _eventSinkDictionary.Values.OfType<EventSourceSink>().Any(sink => sink.IncludeEvaluationProfiles);
             set => _includeEvaluationProfile = value;
+        }
+
+        /// <summary>
+        /// Whether to log properties and items on ProjectEvaluationFinished
+        /// instead of ProjectStarted
+        /// </summary>
+        public bool IncludeEvaluationPropertiesAndItems
+        {
+            get => _includeEvaluationPropertiesAndItems;
+            set => _includeEvaluationPropertiesAndItems = value;
         }
 
         /// <summary>

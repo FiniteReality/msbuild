@@ -103,6 +103,7 @@ namespace Microsoft.Build.Logging
             Environment.SetEnvironmentVariable("MSBUILDTARGETOUTPUTLOGGING", "true");
             Environment.SetEnvironmentVariable("MSBUILDLOGIMPORTS", "1");
             Traits.Instance.EscapeHatches.LogProjectImports = true;
+            Traits.Instance.EscapeHatches.LogPropertiesAndItemsAfterEvaluation = true;
 
             ProcessParameters();
 

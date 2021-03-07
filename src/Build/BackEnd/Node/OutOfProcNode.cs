@@ -716,9 +716,15 @@ namespace Microsoft.Build.Execution
             {
                 _loggingService.IncludeEvaluationMetaprojects = true;
             }
+
             if (configuration.LoggingNodeConfiguration.IncludeEvaluationProfiles)
             {
                 _loggingService.IncludeEvaluationProfile = true;
+            }
+
+            if (configuration.LoggingNodeConfiguration.IncludeEvaluationPropertiesAndItems)
+            {
+                _loggingService.IncludeEvaluationPropertiesAndItems = true;
             }
 
             if (configuration.LoggingNodeConfiguration.IncludeTaskInputs)
