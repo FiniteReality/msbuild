@@ -432,6 +432,10 @@ namespace Microsoft.Build.BackEnd.Logging
         /// </summary>
         /// <param name="projectEvaluationEventContext">Event context for the project.</param>
         /// <param name="projectFile">Project file being built</param>
+        /// <param name="globalProperties">Global properties used for the evaluation.</param>
+        /// <param name="properties">Properties produced by the evaluation.</param>
+        /// <param name="items">Items produced by the evaluation.</param>
+        /// <param name="profilerResult">Profiler results if evaluation profiling was enabled.</param>
         /// <exception cref="InternalErrorException">BuildEventContext is null</exception>
         void LogProjectEvaluationFinished(
             BuildEventContext projectEvaluationEventContext,
