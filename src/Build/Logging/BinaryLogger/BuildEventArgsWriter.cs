@@ -229,12 +229,13 @@ namespace Microsoft.Build.Logging
             WriteBuildEventArgsFields(e);
             WriteDeduplicatedString(e.ProjectFile);
 
-            Write(e.ProfilerResult.HasValue);
-            if (e.ProfilerResult.HasValue)
+            var result = e.ProfilerResult;
+            Write(result.HasValue);
+            if (result.HasValue)
             {
-                Write(e.ProfilerResult.Value.ProfiledLocations.Count);
+                Write(result.Value.ProfiledLocations.Count);
 
-                foreach (var item in e.ProfilerResult.Value.ProfiledLocations)
+                foreach (var item in result.Value.ProfiledLocations)
                 {
                     Write(item.Key);
                     Write(item.Value);

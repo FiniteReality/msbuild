@@ -52,7 +52,7 @@ namespace Microsoft.Build.Framework
 
         internal override void CreateFromStream(BinaryReader reader, int version)
         {
-            timestamp = reader.ReadTimestamp();
+            RawTimestamp = reader.ReadTimestamp();
             BuildEventContext = reader.ReadOptionalBuildEventContext();
             ProjectFile = reader.ReadOptionalString();
             Properties = reader.ReadProperties();
@@ -100,7 +100,7 @@ namespace Microsoft.Build.Framework
 
         internal override void WriteToStream(BinaryWriter writer)
         {
-            writer.WriteTimestamp(timestamp);
+            writer.WriteTimestamp(RawTimestamp);
             writer.WriteOptionalBuildEventContext(BuildEventContext);
             writer.WriteOptionalString(ProjectFile);
             WriteProperties();

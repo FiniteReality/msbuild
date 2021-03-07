@@ -11,6 +11,7 @@ using Microsoft.Build.BackEnd;
 using Microsoft.Build.Collections;
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Framework;
+using Microsoft.Build.Framework.Profiler;
 #if FEATURE_APPDOMAIN
 using TaskEngineAssemblyResolver = Microsoft.Build.BackEnd.Logging.TaskEngineAssemblyResolver;
 #endif
@@ -753,24 +754,89 @@ namespace Microsoft.Build.Shared
 
         private void WriteProjectEvaluationStartedEventToStream(ProjectEvaluationStartedEventArgs args, ITranslator translator)
         {
-            WriteEvaluationEvent(args, args.ProjectFile, translator);
+            WriteEvaluationEvent(args, args.ProjectFile, args.RawTimestamp, translator);
         }
 
         private void WriteProjectEvaluationFinishedEventToStream(ProjectEvaluationFinishedEventArgs args, ITranslator translator)
         {
-            WriteEvaluationEvent(args, args.ProjectFile, translator);
+            WriteEvaluationEvent(args, args.ProjectFile, args.RawTimestamp, translator);
 
             WriteProperties(args.GlobalProperties, translator);
             WriteProperties(args.Properties, translator);
             WriteItems(args.Items, translator);
+            WriteProfileResult(args.ProfilerResult, translator);
         }
 
-        private static void WriteEvaluationEvent(BuildStatusEventArgs args, string projectFile, ITranslator translator)
+        private static void WriteEvaluationEvent(BuildStatusEventArgs args, string projectFile, DateTime timestamp, ITranslator translator)
         {
             var buildEventContext = args.BuildEventContext;
             translator.Translate(ref buildEventContext);
-            translator.Translate(ref args.timestamp);
+            translator.Translate(ref timestamp);
             translator.Translate(ref projectFile);
+        }
+
+        private void WriteProfileResult(ProfilerResult? result, ITranslator translator)
+        {
+            bool hasValue = result.HasValue;
+            translator.Translate(ref hasValue);
+            if (hasValue)
+            {
+                var value = result.Value;
+                var count = value.ProfiledLocations.Count;
+                translator.Translate(ref count);
+
+                foreach (var item in value.ProfiledLocations)
+                {
+                    WriteEvaluationLocation(translator, item.Key);
+                    WriteProfiledLocation(translator, item.Value);
+                }
+            }
+        }
+
+        private void WriteEvaluationLocation(ITranslator translator, EvaluationLocation evaluationLocation)
+        {
+            string elementName = evaluationLocation.ElementName;
+            string elementDescription = evaluationLocation.ElementDescription;
+            string evaluationPassDescription = evaluationLocation.EvaluationPassDescription;
+            string file = evaluationLocation.File;
+            int kind = (int)evaluationLocation.Kind;
+            int evaluationPass = (int)evaluationLocation.EvaluationPass;
+            bool lineHasValue = evaluationLocation.Line.HasValue;
+            int line = lineHasValue ? evaluationLocation.Line.Value : 0;
+            long id = evaluationLocation.Id;
+            bool parentIdHasValue = evaluationLocation.ParentId.HasValue;
+            long parentId = parentIdHasValue ? evaluationLocation.ParentId.Value : 0;
+
+            translator.Translate(ref elementName);
+            translator.Translate(ref elementDescription);
+            translator.Translate(ref evaluationPassDescription);
+            translator.Translate(ref file);
+
+            translator.Translate(ref kind);
+            translator.Translate(ref evaluationPass);
+
+            translator.Translate(ref lineHasValue);
+            if (lineHasValue)
+            {
+                translator.Translate(ref line);
+            }
+
+            translator.Translate(ref id);
+            translator.Translate(ref parentIdHasValue);
+            if (parentIdHasValue)
+            {
+                translator.Translate(ref parentId);
+            }
+        }
+
+        private void WriteProfiledLocation(ITranslator translator, ProfiledLocation profiledLocation)
+        {
+            int numberOfHits = profiledLocation.NumberOfHits;
+            TimeSpan exclusiveTime = profiledLocation.ExclusiveTime;
+            TimeSpan inclusiveTime = profiledLocation.InclusiveTime;
+            translator.Translate(ref numberOfHits);
+            translator.Translate(ref exclusiveTime);
+            translator.Translate(ref inclusiveTime);
         }
 
         [ThreadStatic]
@@ -1116,11 +1182,12 @@ namespace Microsoft.Build.Shared
             var args = new ProjectEvaluationFinishedEventArgs();
 
             ReadEvaluationEvent(args, translator, out string projectFile);
-            args.ProjectFile = projectFile;
 
+            args.ProjectFile = projectFile;
             args.GlobalProperties = ReadProperties(translator);
             args.Properties = ReadProperties(translator);
             args.Items = ReadItems(translator);
+            args.ProfilerResult = ReadProfileResult(translator);
 
             return args;
         }
@@ -1137,7 +1204,7 @@ namespace Microsoft.Build.Shared
             translator.Translate(ref projectFile);
 
             args.BuildEventContext = buildEventContext;
-            args.timestamp = timestamp;
+            args.RawTimestamp = timestamp;
         }
 
         private IEnumerable ReadProperties(ITranslator translator)
@@ -1193,7 +1260,7 @@ namespace Microsoft.Build.Shared
                 return null;
             }
 
-            var list = SmallDictionary<string, string>.Create(count);
+            var list = ArrayDictionary<string, string>.Create(count);
             for (int i = 0; i < count; i++)
             {
                 string key = reader.ReadString();
@@ -1202,6 +1269,98 @@ namespace Microsoft.Build.Shared
             }
 
             return list;
+        }
+
+        private ProfilerResult? ReadProfileResult(ITranslator translator)
+        {
+            bool hasValue = false;
+            translator.Translate(ref hasValue);
+            if (!hasValue)
+            {
+                return null;
+            }
+
+            int count = 0;
+            translator.Translate(ref count);
+
+            var dictionary = new ArrayDictionary<EvaluationLocation, ProfiledLocation>(count);
+
+            for (int i = 0; i < count; i++)
+            {
+                var evaluationLocation = ReadEvaluationLocation(translator);
+                var profiledLocation = ReadProfiledLocation(translator);
+                dictionary.Add(evaluationLocation, profiledLocation);
+            }
+
+            var result = new ProfilerResult(dictionary);
+            return result;
+        }
+
+        private EvaluationLocation ReadEvaluationLocation(ITranslator translator)
+        {
+            string elementName = default;
+            string elementDescription = default;
+            string evaluationPassDescription = default;
+            string file = default;
+            int kind = default;
+            int evaluationPass = default;
+            bool lineHasValue = default;
+            int line = default;
+            long id = default;
+            bool parentIdHasValue = default;
+            long parentId = default;
+
+            translator.Translate(ref elementName);
+            translator.Translate(ref elementDescription);
+            translator.Translate(ref evaluationPassDescription);
+            translator.Translate(ref file);
+
+            translator.Translate(ref kind);
+            translator.Translate(ref evaluationPass);
+
+            translator.Translate(ref lineHasValue);
+            if (lineHasValue)
+            {
+                translator.Translate(ref line);
+            }
+
+            translator.Translate(ref id);
+            translator.Translate(ref parentIdHasValue);
+            if (parentIdHasValue)
+            {
+                translator.Translate(ref parentId);
+            }
+
+            var evaluationLocation = new EvaluationLocation(
+                id,
+                parentIdHasValue ? parentId : null,
+                (EvaluationPass)evaluationPass,
+                evaluationPassDescription,
+                file,
+                lineHasValue ? line : null,
+                elementName,
+                elementDescription,
+                (EvaluationLocationKind)kind);
+
+            return evaluationLocation;
+        }
+
+        private ProfiledLocation ReadProfiledLocation(ITranslator translator)
+        {
+            int numberOfHits = default;
+            TimeSpan exclusiveTime = default;
+            TimeSpan inclusiveTime = default;
+
+            translator.Translate(ref numberOfHits);
+            translator.Translate(ref exclusiveTime);
+            translator.Translate(ref inclusiveTime);
+
+            var profiledLocation = new ProfiledLocation(
+                inclusiveTime,
+                exclusiveTime,
+                numberOfHits);
+
+            return profiledLocation;
         }
 
         #endregion
