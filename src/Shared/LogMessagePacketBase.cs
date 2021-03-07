@@ -608,7 +608,7 @@ namespace Microsoft.Build.Shared
         /// </summary>
         private void WriteEventToStream(BuildEventArgs buildEvent, LoggingEventType eventType, ITranslator translator)
         {
-#if !TASKHOST
+#if !TASKHOST && !MSBUILDENTRYPOINTEXE
             if (eventType == LoggingEventType.ProjectEvaluationStartedEvent)
             {
                 WriteProjectEvaluationStartedEventToStream((ProjectEvaluationStartedEventArgs)buildEvent, translator);
@@ -760,7 +760,7 @@ namespace Microsoft.Build.Shared
             translator.TranslateEnum(ref importance, (int)importance);
         }
 
-#if !TASKHOST
+#if !TASKHOST && !MSBUILDENTRYPOINTEXE
         private void WriteProjectEvaluationStartedEventToStream(ProjectEvaluationStartedEventArgs args, ITranslator translator)
         {
             WriteEvaluationEvent(args, args.ProjectFile, args.RawTimestamp, translator);
@@ -976,7 +976,7 @@ namespace Microsoft.Build.Shared
         /// </summary>
         private BuildEventArgs ReadEventFromStream(LoggingEventType eventType, ITranslator translator)
         {
-#if !TASKHOST
+#if !TASKHOST && !MSBUILDENTRYPOINTEXE
             if (eventType == LoggingEventType.ProjectEvaluationStartedEvent)
             {
                 return ReadProjectEvaluationStartedEventFromStream(translator);
@@ -1183,7 +1183,7 @@ namespace Microsoft.Build.Shared
             return buildEvent;
         }
 
-#if !TASKHOST
+#if !TASKHOST && !MSBUILDENTRYPOINTEXE
         private ProjectEvaluationStartedEventArgs ReadProjectEvaluationStartedEventFromStream(ITranslator translator)
         {
             var (buildEventContext, timestamp, projectFile) = ReadEvaluationEvent(translator);
