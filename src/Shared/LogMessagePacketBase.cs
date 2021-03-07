@@ -314,6 +314,17 @@ namespace Microsoft.Build.Shared
                 translator.Translate(ref packetVersion);
 
                 bool eventCanSerializeItself = methodInfo != null;
+
+#if !TASKHOST && !MSBUILDENTRYPOINTEXE
+                if (_buildEvent is ProjectEvaluationStartedEventArgs ||
+                    _buildEvent is ProjectEvaluationFinishedEventArgs)
+                {
+                    // switch to serialization methods that we provide in this file
+                    // and don't use the WriteToStream inherited from LazyFormattedBuildEventArgs
+                    eventCanSerializeItself = false;
+                }
+#endif
+
                 translator.Translate(ref eventCanSerializeItself);
 
                 if (eventCanSerializeItself)

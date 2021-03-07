@@ -53,6 +53,8 @@ namespace Microsoft.Build.UnitTests.BackEnd
             ProjectStartedEventArgs projectStarted = new ProjectStartedEventArgs(-1, "message", "help", "ProjectFile", "targetNames", null, null, null);
             ProjectFinishedEventArgs projectFinished = new ProjectFinishedEventArgs("message", "help", "ProjectFile", true);
             ExternalProjectStartedEventArgs externalStartedEvent = new ExternalProjectStartedEventArgs("message", "help", "senderName", "projectFile", "targetNames");
+            ProjectEvaluationStartedEventArgs evaluationStarted = new ProjectEvaluationStartedEventArgs();
+            ProjectEvaluationFinishedEventArgs evaluationFinished = new ProjectEvaluationFinishedEventArgs();
 
             VerifyLoggingPacket(buildFinished, LoggingEventType.BuildFinishedEvent);
             VerifyLoggingPacket(buildStarted, LoggingEventType.BuildStartedEvent);
@@ -67,6 +69,8 @@ namespace Microsoft.Build.UnitTests.BackEnd
             VerifyLoggingPacket(targetFinished, LoggingEventType.TargetFinishedEvent);
             VerifyLoggingPacket(projectStarted, LoggingEventType.ProjectStartedEvent);
             VerifyLoggingPacket(projectFinished, LoggingEventType.ProjectFinishedEvent);
+            VerifyLoggingPacket(evaluationStarted, LoggingEventType.ProjectEvaluationStartedEvent);
+            VerifyLoggingPacket(evaluationFinished, LoggingEventType.ProjectEvaluationFinishedEvent);
             VerifyLoggingPacket(externalStartedEvent, LoggingEventType.CustomEvent);
         }
 
@@ -281,6 +285,22 @@ namespace Microsoft.Build.UnitTests.BackEnd
                     // Assert.AreEqual(leftProjectStarted.Items, rightProjectStarted.Items);
                     // UNDONE: (Serialization.) We don't actually serialize properties at this time.
                     // Assert.AreEqual(leftProjectStarted.Properties, rightProjectStarted.Properties);
+                    break;
+
+                case LoggingEventType.ProjectEvaluationStartedEvent:
+                    ProjectEvaluationStartedEventArgs leftEvaluationStarted = left.NodeBuildEvent.Value.Value as ProjectEvaluationStartedEventArgs;
+                    ProjectEvaluationStartedEventArgs rightEvaluationStarted = right.NodeBuildEvent.Value.Value as ProjectEvaluationStartedEventArgs;
+                    Assert.NotNull(leftEvaluationStarted);
+                    Assert.NotNull(rightEvaluationStarted);
+                    Assert.Equal(leftEvaluationStarted.ProjectFile, rightEvaluationStarted.ProjectFile);
+                    break;
+
+                case LoggingEventType.ProjectEvaluationFinishedEvent:
+                    ProjectEvaluationFinishedEventArgs leftEvaluationFinished = left.NodeBuildEvent.Value.Value as ProjectEvaluationFinishedEventArgs;
+                    ProjectEvaluationFinishedEventArgs rightEvaluationFinished = right.NodeBuildEvent.Value.Value as ProjectEvaluationFinishedEventArgs;
+                    Assert.NotNull(leftEvaluationFinished);
+                    Assert.NotNull(rightEvaluationFinished);
+                    Assert.Equal(leftEvaluationFinished.ProjectFile, rightEvaluationFinished.ProjectFile);
                     break;
 
                 case LoggingEventType.TargetFinishedEvent:

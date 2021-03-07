@@ -637,13 +637,13 @@ namespace Microsoft.Build.Logging
             ReadInt32();
 
             var kind = (TaskParameterMessageKind)ReadInt32();
-            var itemName = ReadDeduplicatedString();
+            var itemType = ReadDeduplicatedString();
             var items = ReadTaskItemList() as IList;
 
             var e = ItemGroupLoggingHelper.CreateTaskParameterEventArgs(
                 fields.BuildEventContext,
                 kind,
-                itemName,
+                itemType,
                 items,
                 true,
                 fields.Timestamp);
