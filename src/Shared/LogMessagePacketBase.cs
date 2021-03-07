@@ -9,9 +9,13 @@ using System.Reflection;
 
 using Microsoft.Build.BackEnd;
 using Microsoft.Build.Collections;
-using Microsoft.Build.Evaluation;
 using Microsoft.Build.Framework;
+
+#if !TASKHOST
+using Microsoft.Build.Evaluation;
 using Microsoft.Build.Framework.Profiler;
+#endif
+
 #if FEATURE_APPDOMAIN
 using TaskEngineAssemblyResolver = Microsoft.Build.BackEnd.Logging.TaskEngineAssemblyResolver;
 #endif
@@ -550,6 +554,7 @@ namespace Microsoft.Build.Shared
             {
                 return LoggingEventType.ProjectStartedEvent;
             }
+#if !TASKHOST
             else if (eventType == typeof(ProjectEvaluationFinishedEventArgs))
             {
                 return LoggingEventType.ProjectEvaluationFinishedEvent;
@@ -558,6 +563,7 @@ namespace Microsoft.Build.Shared
             {
                 return LoggingEventType.ProjectEvaluationStartedEvent;
             }
+#endif
             else if (eventType == typeof(TargetStartedEventArgs))
             {
                 return LoggingEventType.TargetStartedEvent;
@@ -602,6 +608,7 @@ namespace Microsoft.Build.Shared
         /// </summary>
         private void WriteEventToStream(BuildEventArgs buildEvent, LoggingEventType eventType, ITranslator translator)
         {
+#if !TASKHOST
             if (eventType == LoggingEventType.ProjectEvaluationStartedEvent)
             {
                 WriteProjectEvaluationStartedEventToStream((ProjectEvaluationStartedEventArgs)buildEvent, translator);
@@ -612,6 +619,7 @@ namespace Microsoft.Build.Shared
                 WriteProjectEvaluationFinishedEventToStream((ProjectEvaluationFinishedEventArgs)buildEvent, translator);
                 return;
             }
+#endif
 
             string message = buildEvent.Message;
             string helpKeyword = buildEvent.HelpKeyword;
@@ -752,6 +760,7 @@ namespace Microsoft.Build.Shared
             translator.TranslateEnum(ref importance, (int)importance);
         }
 
+#if !TASKHOST
         private void WriteProjectEvaluationStartedEventToStream(ProjectEvaluationStartedEventArgs args, ITranslator translator)
         {
             WriteEvaluationEvent(args, args.ProjectFile, args.RawTimestamp, translator);
@@ -955,6 +964,8 @@ namespace Microsoft.Build.Shared
             }
         }
 
+#endif
+
         #endregion
 
         #region Reads from Stream
@@ -965,6 +976,7 @@ namespace Microsoft.Build.Shared
         /// </summary>
         private BuildEventArgs ReadEventFromStream(LoggingEventType eventType, ITranslator translator)
         {
+#if !TASKHOST
             if (eventType == LoggingEventType.ProjectEvaluationStartedEvent)
             {
                 return ReadProjectEvaluationStartedEventFromStream(translator);
@@ -973,6 +985,7 @@ namespace Microsoft.Build.Shared
             {
                 return ReadProjectEvaluationFinishedEventFromStream(translator);
             }
+#endif
 
             string message = null;
             string helpKeyword = null;
@@ -1170,6 +1183,7 @@ namespace Microsoft.Build.Shared
             return buildEvent;
         }
 
+#if !TASKHOST
         private ProjectEvaluationStartedEventArgs ReadProjectEvaluationStartedEventFromStream(ITranslator translator)
         {
             var (buildEventContext, timestamp, projectFile) = ReadEvaluationEvent(translator);
@@ -1373,6 +1387,8 @@ namespace Microsoft.Build.Shared
 
             return profiledLocation;
         }
+
+#endif
 
         #endregion
 
