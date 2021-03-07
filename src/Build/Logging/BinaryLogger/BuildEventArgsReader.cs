@@ -343,7 +343,9 @@ namespace Microsoft.Build.Logging
             var fields = ReadBuildEventArgsFields();
             var projectFile = ReadDeduplicatedString();
 
-            var e = new ProjectEvaluationStartedEventArgs(fields.Message)
+            var e = new ProjectEvaluationStartedEventArgs(
+                ResourceUtilities.GetResourceString("EvaluationStarted"),
+                projectFile)
             {
                 ProjectFile = projectFile
             };
@@ -356,11 +358,29 @@ namespace Microsoft.Build.Logging
             var fields = ReadBuildEventArgsFields();
             var projectFile = ReadDeduplicatedString();
 
-            var e = new ProjectEvaluationFinishedEventArgs(fields.Message)
+            var e = new ProjectEvaluationFinishedEventArgs(
+                ResourceUtilities.GetResourceString("EvaluationFinished"),
+                projectFile)
             {
                 ProjectFile = projectFile
             };
             SetCommonFields(e, fields);
+
+            if (fileFormatVersion >= 12)
+            {
+                IEnumerable globalProperties = null;
+                if (ReadBoolean())
+                {
+                    globalProperties = ReadStringDictionary();
+                }
+
+                var propertyList = ReadPropertyList();
+                var itemList = ReadProjectItems();
+
+                e.GlobalProperties = globalProperties;
+                e.Properties = propertyList;
+                e.Items = itemList;
+            }
 
             // ProfilerResult was introduced in version 5
             if (fileFormatVersion > 4)
@@ -845,26 +865,14 @@ namespace Microsoft.Build.Logging
 
             if ((fields.Flags & BuildEventArgsFieldFlags.Timestamp) != 0)
             {
-                buildEventArgsFieldTimestamp.SetValue(buildEventArgs, fields.Timestamp);
+                buildEventArgs.RawTimestamp = fields.Timestamp;
             }
         }
 
-        private ArrayList ReadPropertyList()
+        private IEnumerable ReadPropertyList()
         {
             var properties = ReadStringDictionary();
-            if (properties == null)
-            {
-                return null;
-            }
-
-            var list = new ArrayList();
-            foreach (var property in properties)
-            {
-                var entry = new DictionaryEntry(property.Key, property.Value);
-                list.Add(entry);
-            }
-
-            return list;
+            return properties;
         }
 
         private BuildEventContext ReadBuildEventContext()
@@ -989,12 +997,12 @@ namespace Microsoft.Build.Logging
                 return null;
             }
 
-            var list = new List<ITaskItem>(count);
+            var list = new ITaskItem[count];
 
             for (int i = 0; i < count; i++)
             {
                 ITaskItem item = ReadTaskItem();
-                list.Add(item);
+                list[i] = item;
             }
 
             return list;

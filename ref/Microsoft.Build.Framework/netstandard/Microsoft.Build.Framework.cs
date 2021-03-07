@@ -38,7 +38,7 @@ namespace Microsoft.Build.Framework
         public Microsoft.Build.Framework.BuildEventContext BuildEventContext { get { throw null; } set { } }
         public string HelpKeyword { get { throw null; } }
         public virtual string Message { get { throw null; } protected set { } }
-        protected System.DateTime RawTimestamp { get { throw null; } set { } }
+        protected internal System.DateTime RawTimestamp { get { throw null; } set { } }
         public string SenderName { get { throw null; } }
         public int ThreadId { get { throw null; } }
         public System.DateTime Timestamp { get { throw null; } }
@@ -381,10 +381,11 @@ namespace Microsoft.Build.Framework
     {
         public ProjectEvaluationFinishedEventArgs() { }
         public ProjectEvaluationFinishedEventArgs(string message, params object[] messageArgs) { }
-        public System.Collections.Generic.IEnumerable<System.Collections.DictionaryEntry> Items { get { throw null; } set { } }
+        public System.Collections.IEnumerable GlobalProperties { get { throw null; } set { } }
+        public System.Collections.IEnumerable Items { get { throw null; } set { } }
         public Microsoft.Build.Framework.Profiler.ProfilerResult? ProfilerResult { get { throw null; } set { } }
         public string ProjectFile { get { throw null; } set { } }
-        public System.Collections.Generic.IEnumerable<System.Collections.DictionaryEntry> Properties { get { throw null; } set { } }
+        public System.Collections.IEnumerable Properties { get { throw null; } set { } }
     }
     public partial class ProjectEvaluationStartedEventArgs : Microsoft.Build.Framework.BuildStatusEventArgs
     {

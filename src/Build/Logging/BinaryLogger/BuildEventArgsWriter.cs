@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Microsoft.Build.BackEnd.Logging;
+using Microsoft.Build.Evaluation;
 using Microsoft.Build.Exceptions;
 using Microsoft.Build.Execution;
 using Microsoft.Build.Framework;
@@ -218,7 +219,7 @@ namespace Microsoft.Build.Logging
         private void Write(ProjectEvaluationStartedEventArgs e)
         {
             Write(BinaryLogRecordKind.ProjectEvaluationStarted);
-            WriteBuildEventArgsFields(e);
+            WriteBuildEventArgsFields(e, writeMessage: false);
             WriteDeduplicatedString(e.ProjectFile);
         }
 
@@ -226,8 +227,22 @@ namespace Microsoft.Build.Logging
         {
             Write(BinaryLogRecordKind.ProjectEvaluationFinished);
 
-            WriteBuildEventArgsFields(e);
+            WriteBuildEventArgsFields(e, writeMessage: false);
             WriteDeduplicatedString(e.ProjectFile);
+
+            if (e.GlobalProperties == null)
+            {
+                Write(false);
+            }
+            else
+            {
+                Write(true);
+                WriteProperties(e.GlobalProperties);
+            }
+
+            WriteProperties(e.Properties);
+
+            WriteProjectItems(e.Items);
 
             var result = e.ProfilerResult;
             Write(result.HasValue);
@@ -729,6 +744,8 @@ namespace Microsoft.Build.Logging
             reusableItemsList.Clear();
         }
 
+        private readonly List<(string Key, ITaskItem Value)> reusableProjectItemList = new List<(string, ITaskItem)>();
+
         private void WriteProjectItems(IEnumerable items)
         {
             if (items == null)
@@ -737,10 +754,29 @@ namespace Microsoft.Build.Logging
                 return;
             }
 
-            var groups = items
-                .OfType<DictionaryEntry>()
-                .GroupBy(entry => entry.Key as string, entry => entry.Value as ITaskItem)
-                .Where(group => !string.IsNullOrEmpty(group.Key))
+            foreach (var item in items)
+            {
+                string itemType = default;
+
+                if (item is IItem iitem)
+                {
+                    itemType = iitem.Key;
+                }
+                else if (item is DictionaryEntry dictionaryEntry)
+                {
+                    itemType = dictionaryEntry.Key as string;
+                }
+
+                if (string.IsNullOrEmpty(itemType) || !(item is ITaskItem taskItem))
+                {
+                    continue;
+                }
+
+                reusableProjectItemList.Add((itemType, taskItem));
+            }
+
+            var groups = reusableProjectItemList
+                .GroupBy(entry => entry.Key, entry => entry.Value)
                 .ToArray();
 
             Write(groups.Length);
@@ -750,6 +786,8 @@ namespace Microsoft.Build.Logging
                 WriteDeduplicatedString(group.Key);
                 WriteTaskItemList(group);
             }
+
+            reusableProjectItemList.Clear();
         }
 
         private void Write(ITaskItem item, bool writeMetadata = true)
@@ -788,20 +826,15 @@ namespace Microsoft.Build.Logging
                 return;
             }
 
-            // there are no guarantees that the properties iterator won't change, so 
-            // take a snapshot and work with the readonly copy
-            var propertiesArray = properties.OfType<DictionaryEntry>().ToArray();
-
-            for (int i = 0; i < propertiesArray.Length; i++)
+            foreach (var item in properties)
             {
-                DictionaryEntry entry = propertiesArray[i];
-                if (entry.Key is string key && entry.Value is string value)
+                if (item is IProperty property && !string.IsNullOrEmpty(property.Name))
                 {
-                    nameValueListBuffer.Add(new KeyValuePair<string, string>(key, value));
+                    nameValueListBuffer.Add(new KeyValuePair<string, string>(property.Name, property.EvaluatedValue ?? string.Empty));
                 }
-                else
+                else if (item is DictionaryEntry dictionaryEntry && dictionaryEntry.Key is string key && !string.IsNullOrEmpty(key))
                 {
-                    nameValueListBuffer.Add(new KeyValuePair<string, string>(string.Empty, string.Empty));
+                    nameValueListBuffer.Add(new KeyValuePair<string, string>(key, dictionaryEntry.Value as string ?? string.Empty));
                 }
             }
 

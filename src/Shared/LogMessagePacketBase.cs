@@ -921,30 +921,33 @@ namespace Microsoft.Build.Shared
             list.Clear();
         }
 
-        private void WriteMetadata(object item, BinaryWriter writer)
+        private void WriteMetadata(object metadataContainer, BinaryWriter writer)
         {
-            if (item is ITaskItem taskItem)
+            if (metadataContainer is ITaskItem taskItem)
             {
-                var metadata = taskItem.CloneCustomMetadata();
-                BinaryWriterExtensions.Write7BitEncodedInt(writer, metadata.Count);
-                foreach (var kvp in metadata)
+                var metadata = taskItem.EnumerateMetadata();
+
+                if (reusablePropertyList == null)
                 {
-                    if (kvp is DictionaryEntry dictionaryEntry)
-                    {
-                        writer.Write(dictionaryEntry.Key as string ?? string.Empty);
-                        writer.Write(dictionaryEntry.Value as string ?? string.Empty);
-                    }
-                    else if (kvp is KeyValuePair<string, string> keyValurPair)
-                    {
-                        writer.Write(keyValurPair.Key ?? string.Empty);
-                        writer.Write(keyValurPair.Value ?? string.Empty);
-                    }
-                    else
-                    {
-                        writer.Write(string.Empty);
-                        writer.Write(string.Empty);
-                    }
+                    reusablePropertyList = new List<KeyValuePair<string, string>>();
                 }
+
+                // it is expensive to access a ThreadStatic field every time
+                var list = reusablePropertyList;
+
+                foreach (var item in metadata)
+                {
+                    list.Add(item);
+                }
+
+                BinaryWriterExtensions.Write7BitEncodedInt(writer, list.Count);
+                foreach (var kvp in list)
+                {
+                    writer.Write(kvp.Key ?? string.Empty);
+                    writer.Write(kvp.Value ?? string.Empty);
+                }
+
+                list.Clear();
             }
             else
             {
@@ -1169,9 +1172,13 @@ namespace Microsoft.Build.Shared
 
         private ProjectEvaluationStartedEventArgs ReadProjectEvaluationStartedEventFromStream(ITranslator translator)
         {
-            var args = new ProjectEvaluationStartedEventArgs();
+            var (buildEventContext, timestamp, projectFile) = ReadEvaluationEvent(translator);
 
-            ReadEvaluationEvent(args, translator, out string projectFile);
+            var args = new ProjectEvaluationStartedEventArgs(
+                ResourceUtilities.GetResourceString("EvaluationStarted"), projectFile);
+
+            args.BuildEventContext = buildEventContext;
+            args.RawTimestamp = timestamp;
             args.ProjectFile = projectFile;
 
             return args;
@@ -1179,11 +1186,15 @@ namespace Microsoft.Build.Shared
 
         private ProjectEvaluationFinishedEventArgs ReadProjectEvaluationFinishedEventFromStream(ITranslator translator)
         {
-            var args = new ProjectEvaluationFinishedEventArgs();
+            var (buildEventContext, timestamp, projectFile) = ReadEvaluationEvent(translator);
 
-            ReadEvaluationEvent(args, translator, out string projectFile);
+            var args = new ProjectEvaluationFinishedEventArgs(
+                ResourceUtilities.GetResourceString("EvaluationFinished"), projectFile);
 
+            args.BuildEventContext = buildEventContext;
+            args.RawTimestamp = timestamp;
             args.ProjectFile = projectFile;
+
             args.GlobalProperties = ReadProperties(translator);
             args.Properties = ReadProperties(translator);
             args.Items = ReadItems(translator);
@@ -1192,7 +1203,8 @@ namespace Microsoft.Build.Shared
             return args;
         }
 
-        private void ReadEvaluationEvent(BuildStatusEventArgs args, ITranslator translator, out string projectFile)
+        private (BuildEventContext buildEventContext, DateTime timestamp, string projectFile)
+            ReadEvaluationEvent(ITranslator translator)
         {
             BuildEventContext buildEventContext = null;
             translator.Translate(ref buildEventContext);
@@ -1200,11 +1212,10 @@ namespace Microsoft.Build.Shared
             DateTime timestamp = default;
             translator.Translate(ref timestamp);
 
-            projectFile = null;
+            string projectFile = null;
             translator.Translate(ref projectFile);
 
-            args.BuildEventContext = buildEventContext;
-            args.RawTimestamp = timestamp;
+            return (buildEventContext, timestamp, projectFile);
         }
 
         private IEnumerable ReadProperties(ITranslator translator)
