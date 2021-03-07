@@ -5,6 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Microsoft.Build.Framework;
+using Microsoft.Build.Framework.Profiler;
 using Microsoft.Build.BackEnd.Logging;
 using Microsoft.Build.Logging;
 using Microsoft.Build.Shared;
@@ -469,7 +470,13 @@ namespace Microsoft.Build.UnitTests.BackEnd
         /// <summary>
         /// Logs a project evaluation finished event
         /// </summary>
-        public void LogProjectEvaluationFinished(BuildEventContext projectEvaluationEventContext, string projectFile)
+        public void LogProjectEvaluationFinished(
+            BuildEventContext projectEvaluationEventContext,
+            string projectFile,
+            IEnumerable globalProperties,
+            IEnumerable properties,
+            IEnumerable items,
+            ProfilerResult? profilerResult)
         {
         }
 
