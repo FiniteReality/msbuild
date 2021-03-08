@@ -14,6 +14,7 @@ using Microsoft.Build.Framework;
 #if !TASKHOST
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Framework.Profiler;
+using Microsoft.Build.Execution;
 #endif
 
 #if FEATURE_APPDOMAIN
@@ -882,15 +883,26 @@ namespace Microsoft.Build.Shared
             // it is expensive to access a ThreadStatic field every time
             var list = reusablePropertyList;
 
-            foreach (var item in properties)
+            if (properties is PropertyDictionary<ProjectPropertyInstance> propertyDictionary)
             {
-                if (item is IProperty property && !string.IsNullOrEmpty(property.Name))
+                propertyDictionary.Enumerate(count => { },
+                (key, value) =>
                 {
-                    list.Add(new KeyValuePair<string, string>(property.Name, property.EvaluatedValue ?? string.Empty));
-                }
-                else if (item is DictionaryEntry dictionaryEntry && dictionaryEntry.Key is string key && !string.IsNullOrEmpty(key))
+                    list.Add(new KeyValuePair<string, string>(key, value));
+                });
+            }
+            else
+            {
+                foreach (var item in properties)
                 {
-                    list.Add(new KeyValuePair<string, string>(key, dictionaryEntry.Value as string ?? string.Empty));
+                    if (item is IProperty property && !string.IsNullOrEmpty(property.Name))
+                    {
+                        list.Add(new KeyValuePair<string, string>(property.Name, property.EvaluatedValue ?? string.Empty));
+                    }
+                    else if (item is DictionaryEntry dictionaryEntry && dictionaryEntry.Key is string key && !string.IsNullOrEmpty(key))
+                    {
+                        list.Add(new KeyValuePair<string, string>(key, dictionaryEntry.Value as string ?? string.Empty));
+                    }
                 }
             }
 
@@ -921,11 +933,27 @@ namespace Microsoft.Build.Shared
 
             var list = reusableItemList;
 
-            foreach (var item in items)
+            if (items is ItemDictionary<ProjectItemInstance> itemDictionary)
             {
-                if (item is IItem iitem)
+                itemDictionary.EnumerateItemsPerType(count =>
                 {
-                    list.Add(iitem);
+                },
+                (itemType, itemList) =>
+                {
+                    foreach (var i in itemList)
+                    {
+                        list.Add(i);
+                    }
+                });
+            }
+            else
+            {
+                foreach (var item in items)
+                {
+                    if (item is IItem iitem)
+                    {
+                        list.Add(iitem);
+                    }
                 }
             }
 
