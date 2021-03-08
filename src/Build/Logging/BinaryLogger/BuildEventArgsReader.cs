@@ -872,7 +872,19 @@ namespace Microsoft.Build.Logging
         private IEnumerable ReadPropertyList()
         {
             var properties = ReadStringDictionary();
-            return properties;
+            if (properties == null)
+            {
+                return null;
+            }
+
+            var list = new ArrayList();
+            foreach (var property in properties)
+            {
+                var entry = new DictionaryEntry(property.Key, property.Value);
+                list.Add(entry);
+            }
+
+            return list;
         }
 
         private BuildEventContext ReadBuildEventContext()
