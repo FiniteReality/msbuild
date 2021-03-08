@@ -138,6 +138,11 @@ namespace Microsoft.Build.Logging
                 {
                     eventSource3.IncludeEvaluationMetaprojects();
                 }
+
+                if (eventSource is IEventSource4 eventSource4)
+                {
+                    eventSource4.IncludeEvaluationPropertiesAndItems();
+                }
             }
             catch (Exception e)
             {

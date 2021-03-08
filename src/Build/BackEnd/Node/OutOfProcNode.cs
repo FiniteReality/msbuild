@@ -722,14 +722,14 @@ namespace Microsoft.Build.Execution
                 _loggingService.IncludeEvaluationProfile = true;
             }
 
-            if (configuration.LoggingNodeConfiguration.IncludeEvaluationPropertiesAndItems)
-            {
-                _loggingService.IncludeEvaluationPropertiesAndItems = true;
-            }
-
             if (configuration.LoggingNodeConfiguration.IncludeTaskInputs)
             {
                 _loggingService.IncludeTaskInputs = true;
+            }
+
+            if (configuration.LoggingNodeConfiguration.IncludeEvaluationPropertiesAndItems)
+            {
+                _loggingService.IncludeEvaluationPropertiesAndItems = true;
             }
 
             try

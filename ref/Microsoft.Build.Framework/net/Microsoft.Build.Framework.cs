@@ -253,6 +253,10 @@ namespace Microsoft.Build.Framework
         void IncludeEvaluationProfiles();
         void IncludeTaskInputs();
     }
+    public partial interface IEventSource4 : Microsoft.Build.Framework.IEventSource, Microsoft.Build.Framework.IEventSource2, Microsoft.Build.Framework.IEventSource3
+    {
+        void IncludeEvaluationPropertiesAndItems();
+    }
     public partial interface IForwardingLogger : Microsoft.Build.Framework.ILogger, Microsoft.Build.Framework.INodeLogger
     {
         Microsoft.Build.Framework.IEventRedirector BuildEventRedirector { get; set; }

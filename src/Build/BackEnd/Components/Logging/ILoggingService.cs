@@ -189,8 +189,8 @@ namespace Microsoft.Build.BackEnd.Logging
         }
 
         /// <summary>
-        /// Log properties and items on ProjectEvaluationFinishedEventArgs
-        /// instead of ProjectStartedEventArgs.
+        /// Should properties and items be logged on <see cref="ProjectEvaluationFinishedEventArgs"/>
+        /// instead of <see cref="ProjectStartedEventArgs"/>?
         /// </summary>
         bool IncludeEvaluationPropertiesAndItems
         {
