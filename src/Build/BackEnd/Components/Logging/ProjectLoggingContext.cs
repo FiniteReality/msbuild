@@ -87,7 +87,7 @@ namespace Microsoft.Build.BackEnd.Logging
 
             // If we are only logging critical events lets not pass back the items or properties
             if (!LoggingService.OnlyLogCriticalEvents &&
-                !Traits.Instance.EscapeHatches.LogPropertiesAndItemsAfterEvaluation &&
+                !LoggingService.IncludeEvaluationPropertiesAndItems &&
                 (!LoggingService.RunningOnRemoteNode || LoggingService.SerializeAllProperties))
             {
                 if (projectProperties != null)
@@ -105,7 +105,7 @@ namespace Microsoft.Build.BackEnd.Logging
             }
 
             if (projectProperties != null &&
-                !Traits.Instance.EscapeHatches.LogPropertiesAndItemsAfterEvaluation &&
+                !LoggingService.IncludeEvaluationPropertiesAndItems &&
                 propertiesToSerialize?.Length > 0 &&
                 !LoggingService.SerializeAllProperties)
             {

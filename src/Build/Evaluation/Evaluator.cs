@@ -795,7 +795,7 @@ namespace Microsoft.Build.Evaluation
 
         private IEnumerable<DictionaryEntry> GetProperties()
         {
-            if (!Traits.Instance.EscapeHatches.LogPropertiesAndItemsAfterEvaluation)
+            if (!_evaluationLoggingContext.LoggingService.IncludeEvaluationPropertiesAndItems)
             {
                 return Array.Empty<DictionaryEntry>();
             }
@@ -813,7 +813,7 @@ namespace Microsoft.Build.Evaluation
 
         private IEnumerable<DictionaryEntry> GetItems()
         {
-            if (!Traits.Instance.EscapeHatches.LogPropertiesAndItemsAfterEvaluation)
+            if (!!_evaluationLoggingContext.LoggingService.IncludeEvaluationPropertiesAndItems)
             {
                 return Array.Empty<DictionaryEntry>();
             }
@@ -824,54 +824,12 @@ namespace Microsoft.Build.Evaluation
             foreach (var item in items)
             {
                 var metadata = item.Metadata.ToDictionary(m => m.Key, m => EscapingUtilities.UnescapeAll(m.EscapedValue));
-                var taskItem = new TempTaskItem(item.EvaluatedInclude, metadata);
+                var taskItem = new TaskItemData(item.EvaluatedInclude, metadata);
                 var entry = new DictionaryEntry(item.Key, taskItem);
                 list.Add(entry);
             }
 
             return list;
-        }
-
-        private class TempTaskItem : ITaskItem
-        {
-            public TempTaskItem(string evaluatedInclude, IDictionary<string, string> metadata)
-            {
-                ItemSpec = evaluatedInclude;
-                Metadata = metadata;
-            }
-
-            public string ItemSpec { get; set; }
-            public IDictionary<string, string> Metadata { get; }
-
-            public ICollection MetadataNames => (ICollection)Metadata.Keys;
-
-            public int MetadataCount => Metadata.Count;
-
-            public IDictionary CloneCustomMetadata()
-            {
-                return (IDictionary)Metadata;
-            }
-
-            public void CopyMetadataTo(ITaskItem destinationItem)
-            {
-                throw new NotImplementedException();
-            }
-
-            public string GetMetadata(string metadataName)
-            {
-                Metadata.TryGetValue(metadataName, out var result);
-                return result;
-            }
-
-            public void RemoveMetadata(string metadataName)
-            {
-                throw new NotImplementedException();
-            }
-
-            public void SetMetadata(string metadataName, string metadataValue)
-            {
-                throw new NotImplementedException();
-            }
         }
 
         private void CollectProjectCachePlugins()
