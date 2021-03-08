@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Microsoft.Build.BackEnd.Logging;
+using Microsoft.Build.Collections;
 using Microsoft.Build.Evaluation;
 using Microsoft.Build.Exceptions;
 using Microsoft.Build.Execution;
@@ -754,40 +755,58 @@ namespace Microsoft.Build.Logging
                 return;
             }
 
-            foreach (var item in items)
+            if (items is ItemDictionary<ProjectItemInstance> itemDictionary)
             {
-                string itemType = default;
-
-                if (item is IItem iitem)
+                itemDictionary.EnumerateItemsPerType(count =>
                 {
-                    itemType = iitem.Key;
-                }
-                else if (item is DictionaryEntry dictionaryEntry)
+                    Write(count);
+                },
+                (itemType, itemList) =>
                 {
-                    itemType = dictionaryEntry.Key as string;
-                }
-
-                if (string.IsNullOrEmpty(itemType) || !(item is ITaskItem taskItem))
-                {
-                    continue;
-                }
-
-                reusableProjectItemList.Add((itemType, taskItem));
+                    WriteDeduplicatedString(itemType);
+                    WriteTaskItemList(itemList);
+                });
             }
-
-            var groups = reusableProjectItemList
-                .GroupBy(entry => entry.Key, entry => entry.Value)
-                .ToArray();
-
-            Write(groups.Length);
-
-            foreach (var group in groups)
+            else
             {
-                WriteDeduplicatedString(group.Key);
-                WriteTaskItemList(group);
-            }
+                foreach (var item in items)
+                {
+                    string itemType = default;
 
-            reusableProjectItemList.Clear();
+                    if (item is IItem iitem)
+                    {
+                        itemType = iitem.Key;
+                    }
+                    else if (item is DictionaryEntry dictionaryEntry)
+                    {
+                        itemType = dictionaryEntry.Key as string;
+                    }
+                    else
+                    {
+                    }
+
+                    if (string.IsNullOrEmpty(itemType) || item is not ITaskItem taskItem)
+                    {
+                        continue;
+                    }
+
+                    reusableProjectItemList.Add((itemType, taskItem));
+                }
+
+                var groups = reusableProjectItemList
+                    .GroupBy(entry => entry.Key, entry => entry.Value)
+                    .ToArray();
+
+                Write(groups.Length);
+
+                foreach (var group in groups)
+                {
+                    WriteDeduplicatedString(group.Key);
+                    WriteTaskItemList(group);
+                }
+
+                reusableProjectItemList.Clear();
+            }
         }
 
         private void Write(ITaskItem item, bool writeMetadata = true)

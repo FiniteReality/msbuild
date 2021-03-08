@@ -167,6 +167,48 @@ namespace Microsoft.Build.Collections
             return _itemLists.GetEnumerator();
         }
 
+        /// <summary>
+        /// Enumerates item lists per each item type under the lock.
+        /// </summary>
+        /// <param name="countVisitor">
+        /// A delegate that will be called prior to enumeration to report the total number
+        /// of times the <paramref name="itemTypeVisitor"/> will be called.
+        /// </param>
+        /// <param name="itemTypeVisitor">
+        /// A delegate that accepts the item type string and a list of items of that type.
+        /// Will be called for each item type in the list.
+        /// </param>
+        internal void EnumerateItemsPerType(Action<int> countVisitor, Action<string, IEnumerable<T>> itemTypeVisitor)
+        {
+            lock (_itemLists)
+            {
+                int count = 0;
+                foreach (var itemTypeBucket in _itemLists)
+                {
+                    if (itemTypeBucket.Value == null || itemTypeBucket.Value.Count == 0)
+                    {
+                        // skip empty markers
+                        continue;
+                    }
+
+                    count++;
+                }
+
+                countVisitor(count);
+
+                foreach (var itemTypeBucket in _itemLists)
+                {
+                    if (itemTypeBucket.Value == null || itemTypeBucket.Value.Count == 0)
+                    {
+                        // skip empty markers
+                        continue;
+                    }
+
+                    itemTypeVisitor(itemTypeBucket.Key, itemTypeBucket.Value);
+                }
+            }
+        }
+
         #region ItemDictionary<T> Members
 
         /// <summary>
