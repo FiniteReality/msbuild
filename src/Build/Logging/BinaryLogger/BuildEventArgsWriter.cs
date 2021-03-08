@@ -845,15 +845,26 @@ namespace Microsoft.Build.Logging
                 return;
             }
 
-            foreach (var item in properties)
+            if (properties is PropertyDictionary<ProjectPropertyInstance> propertyDictionary)
             {
-                if (item is IProperty property && !string.IsNullOrEmpty(property.Name))
+                propertyDictionary.Enumerate(count => { },
+                (key, value) =>
                 {
-                    nameValueListBuffer.Add(new KeyValuePair<string, string>(property.Name, property.EvaluatedValue ?? string.Empty));
-                }
-                else if (item is DictionaryEntry dictionaryEntry && dictionaryEntry.Key is string key && !string.IsNullOrEmpty(key))
+                    nameValueListBuffer.Add(new KeyValuePair<string, string>(key, value));
+                });
+            }
+            else
+            {
+                foreach (var item in properties)
                 {
-                    nameValueListBuffer.Add(new KeyValuePair<string, string>(key, dictionaryEntry.Value as string ?? string.Empty));
+                    if (item is IProperty property && !string.IsNullOrEmpty(property.Name))
+                    {
+                        nameValueListBuffer.Add(new KeyValuePair<string, string>(property.Name, property.EvaluatedValue ?? string.Empty));
+                    }
+                    else if (item is DictionaryEntry dictionaryEntry && dictionaryEntry.Key is string key && !string.IsNullOrEmpty(key))
+                    {
+                        nameValueListBuffer.Add(new KeyValuePair<string, string>(key, dictionaryEntry.Value as string ?? string.Empty));
+                    }
                 }
             }
 

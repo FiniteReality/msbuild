@@ -493,21 +493,32 @@ namespace Microsoft.Build.Collections
         /// <summary>
         /// Helper to convert into a read-only dictionary of string, string.
         /// </summary>
-        internal Dictionary<string, string> ToDictionary()
+        internal IDictionary<string, string> ToDictionary()
         {
-            Dictionary<string, string> dictionary;
-
             lock (_properties)
             {
-                dictionary = new Dictionary<string, string>(_properties.Count, MSBuildNameIgnoreCaseComparer.Default);
+                var dictionary = new ArrayDictionary<string, string>(_properties.Count);
 
                 foreach (T property in this)
                 {
-                    dictionary[property.Key] = property.EscapedValue;
+                    dictionary.Add(property.Key, property.EscapedValue);
+                }
+
+                return dictionary;
+            }
+        }
+
+        internal void Enumerate(Action<int> countCallback, Action<string, string> keyValueCallback)
+        {
+            lock (_properties)
+            {
+                countCallback(_properties.Count);
+
+                foreach (var kvp in _properties)
+                {
+                    keyValueCallback(kvp.Key, EscapingUtilities.UnescapeAll(kvp.EscapedValue));
                 }
             }
-
-            return dictionary;
         }
     }
 }

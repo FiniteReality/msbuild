@@ -664,7 +664,7 @@ namespace Microsoft.Build.BackEnd
         /// <returns>An <see cref="IReadOnlyDictionary{String, String}" /> containing the global properties of the current project.</returns>
         public IReadOnlyDictionary<string, string> GetGlobalProperties()
         {
-            return _requestEntry.RequestConfiguration.GlobalProperties.ToDictionary();
+            return (IReadOnlyDictionary<string, string>)_requestEntry.RequestConfiguration.GlobalProperties.ToDictionary();
         }
 
         #endregion
