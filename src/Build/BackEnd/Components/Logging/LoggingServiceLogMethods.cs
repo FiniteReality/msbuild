@@ -594,17 +594,24 @@ namespace Microsoft.Build.BackEnd.Logging
 
                 ErrorUtilities.VerifyThrow(_configCache.Value.HasConfiguration(projectInstanceId), "Cannot find the project configuration while injecting non-serialized data from out-of-proc node.");
                 var buildRequestConfiguration = _configCache.Value[projectInstanceId];
-                ProjectStartedEventArgs buildEvent = new ProjectStartedEventArgs
+
+                IDictionary<string, string> globalProperties = null;
+                if (!IncludeEvaluationPropertiesAndItems)
+                {
+                    globalProperties = buildRequestConfiguration.GlobalProperties.ToDictionary();
+                }
+
+                var buildEvent = new ProjectStartedEventArgs
                     (
                         projectInstanceId,
                         message,
-                        null,       // no help keyword
+                        helpKeyword: null,
                         projectFile,
                         targetNames,
                         properties,
                         items,
                         parentBuildEventContext,
-                        buildRequestConfiguration.GlobalProperties.ToDictionary(),
+                        globalProperties,
                         buildRequestConfiguration.ToolsVersion
                     );
                 buildEvent.BuildEventContext = projectBuildEventContext;

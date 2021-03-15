@@ -527,6 +527,7 @@ namespace Microsoft.Build.BackEnd.Logging
                 {
                     DisplayDeferredProjectStartedEvent(e.BuildEventContext);
                 }
+
                 if (e.Properties != null)
                 {
                     WriteProperties(e, e.Properties);
@@ -538,30 +539,36 @@ namespace Microsoft.Build.BackEnd.Logging
                 }
             }
 
-            if (e.BuildEventContext == null || e.Items == null)
+            ReadProjectConfigurationDescription(e.BuildEventContext, e.Items);
+        }
+
+        private void ReadProjectConfigurationDescription(BuildEventContext buildEventContext, IEnumerable items)
+        {
+            if (buildEventContext == null || items == null)
             {
                 return;
             }
 
             // node and project context ids for the propertyOutputMap key.
-            int nodeID = e.BuildEventContext.NodeId;
-            int projectContextId = e.BuildEventContext.ProjectContextId;
-
-            // Create the value to be added to the propertyOutputMap.
+            int nodeID = buildEventContext.NodeId;
+            int projectContextId = buildEventContext.ProjectContextId;
             using var projectConfigurationDescription = new ReuseableStringBuilder();
 
-            foreach (DictionaryEntry item in e.Items)
+            foreach (DictionaryEntry item in items)
             {
-                ITaskItem itemVal = (ITaskItem)item.Value;
                 // Determine if the LogOutputProperties item has been used.
-                if (string.Equals((string)item.Key, ItemMetadataNames.ProjectConfigurationDescription, StringComparison.OrdinalIgnoreCase))
+                if (item.Value is ITaskItem itemVal && string.Equals((string)item.Key, ItemMetadataNames.ProjectConfigurationDescription, StringComparison.OrdinalIgnoreCase))
                 {
                     // Add the item value to the string to be printed in error/warning messages.
                     projectConfigurationDescription.Append(" ").Append(itemVal.ItemSpec);
                 }
             }
+
             // Add the finished dictionary to propertyOutputMap.
-            propertyOutputMap.Add((nodeID, projectContextId), projectConfigurationDescription.ToString());
+            if (projectConfigurationDescription.Length > 0)
+            {
+                propertyOutputMap.Add((nodeID, projectContextId), projectConfigurationDescription.ToString());
+            }
         }
 
         /// <summary>
@@ -1122,25 +1129,36 @@ namespace Microsoft.Build.BackEnd.Logging
 
         public override void StatusEventHandler(object sender, BuildStatusEventArgs e)
         {
-            if (showPerfSummary)
+            if (e is ProjectEvaluationStartedEventArgs projectEvaluationStarted)
             {
-                ProjectEvaluationStartedEventArgs projectEvaluationStarted = e as ProjectEvaluationStartedEventArgs;
-
-                if (projectEvaluationStarted != null)
+                if (showPerfSummary)
                 {
                     MPPerformanceCounter counter = GetPerformanceCounter(projectEvaluationStarted.ProjectFile, ref projectEvaluationPerformanceCounters);
                     counter.AddEventStarted(null, e.BuildEventContext, e.Timestamp, s_compareContextNodeId);
-
-                    return;
                 }
-
-                ProjectEvaluationFinishedEventArgs projectEvaluationFinished = e as ProjectEvaluationFinishedEventArgs;
-
-                if (projectEvaluationFinished != null)
+            }
+            else if (e is ProjectEvaluationFinishedEventArgs projectEvaluationFinished)
+            {
+                if (showPerfSummary)
                 {
                     MPPerformanceCounter counter = GetPerformanceCounter(projectEvaluationFinished.ProjectFile, ref projectEvaluationPerformanceCounters);
                     counter.AddEventFinished(null, e.BuildEventContext, e.Timestamp);
                 }
+
+                if (Verbosity == LoggerVerbosity.Diagnostic && showItemAndPropertyList)
+                {
+                    if (projectEvaluationFinished.Properties != null)
+                    {
+                        WriteProperties(projectEvaluationFinished, projectEvaluationFinished.Properties);
+                    }
+
+                    if (projectEvaluationFinished.Items != null)
+                    {
+                        WriteItems(projectEvaluationFinished, projectEvaluationFinished.Items);
+                    }
+                }
+
+                ReadProjectConfigurationDescription(projectEvaluationFinished.BuildEventContext, projectEvaluationFinished.Items);
             }
         }
 
