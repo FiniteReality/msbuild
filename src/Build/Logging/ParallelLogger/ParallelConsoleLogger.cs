@@ -552,22 +552,29 @@ namespace Microsoft.Build.BackEnd.Logging
             // node and project context ids for the propertyOutputMap key.
             int nodeID = buildEventContext.NodeId;
             int projectContextId = buildEventContext.ProjectContextId;
-            using var projectConfigurationDescription = new ReuseableStringBuilder();
 
-            foreach (DictionaryEntry item in items)
+            ReuseableStringBuilder projectConfigurationDescription = null;
+
+            Internal.Utilities.EnumerateItems(items, item =>
             {
                 // Determine if the LogOutputProperties item has been used.
                 if (item.Value is ITaskItem itemVal && string.Equals((string)item.Key, ItemMetadataNames.ProjectConfigurationDescription, StringComparison.OrdinalIgnoreCase))
                 {
+                    if (projectConfigurationDescription == null)
+                    {
+                        projectConfigurationDescription = new ReuseableStringBuilder();
+                    }
+
                     // Add the item value to the string to be printed in error/warning messages.
                     projectConfigurationDescription.Append(" ").Append(itemVal.ItemSpec);
                 }
-            }
+            });
 
             // Add the finished dictionary to propertyOutputMap.
-            if (projectConfigurationDescription.Length > 0)
+            if (projectConfigurationDescription != null)
             {
                 propertyOutputMap.Add((nodeID, projectContextId), projectConfigurationDescription.ToString());
+                (projectConfigurationDescription as IDisposable)?.Dispose();
             }
         }
 

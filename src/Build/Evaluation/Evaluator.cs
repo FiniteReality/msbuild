@@ -785,7 +785,11 @@ namespace Microsoft.Build.Evaluation
 
             if (this._evaluationLoggingContext.LoggingService.IncludeEvaluationPropertiesAndItems)
             {
-                globalProperties = _data.GlobalPropertiesDictionary;
+                if (_data.GlobalPropertiesDictionary.Count > 0)
+                {
+                    globalProperties = _data.GlobalPropertiesDictionary;
+                }
+
                 properties = _data.Properties;
                 items = _data.Items;
             }
