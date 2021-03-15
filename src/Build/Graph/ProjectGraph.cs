@@ -50,7 +50,7 @@ namespace Microsoft.Build.Graph
         /// </remarks>
         public delegate ProjectInstance ProjectInstanceFactoryFunc(
             string projectPath,
-            IDictionary<string, string> globalProperties,
+            Dictionary<string, string> globalProperties,
             ProjectCollection projectCollection);
 
         private readonly Lazy<IReadOnlyCollection<ProjectGraphNode>> _projectNodesTopologicallySorted;
@@ -718,7 +718,7 @@ namespace Microsoft.Build.Graph
 
         internal static ProjectInstance DefaultProjectInstanceFactory(
             string projectPath,
-            IDictionary<string, string> globalProperties,
+            Dictionary<string, string> globalProperties,
             ProjectCollection projectCollection)
         {
             return new ProjectInstance(

@@ -493,15 +493,15 @@ namespace Microsoft.Build.Collections
         /// <summary>
         /// Helper to convert into a read-only dictionary of string, string.
         /// </summary>
-        internal IDictionary<string, string> ToDictionary()
+        internal Dictionary<string, string> ToDictionary()
         {
             lock (_properties)
             {
-                var dictionary = new ArrayDictionary<string, string>(_properties.Count);
+                var dictionary = new Dictionary<string, string>(_properties.Count);
 
                 foreach (T property in this)
                 {
-                    dictionary.Add(property.Key, property.EscapedValue);
+                    dictionary[property.Key] = property.EscapedValue;
                 }
 
                 return dictionary;

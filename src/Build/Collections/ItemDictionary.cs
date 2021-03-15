@@ -170,15 +170,15 @@ namespace Microsoft.Build.Collections
         /// <summary>
         /// Enumerates item lists per each item type under the lock.
         /// </summary>
-        /// <param name="countVisitor">
+        /// <param name="countCallback">
         /// A delegate that will be called prior to enumeration to report the total number
-        /// of times the <paramref name="itemTypeVisitor"/> will be called.
+        /// of times the <paramref name="itemTypeCallback"/> will be called.
         /// </param>
-        /// <param name="itemTypeVisitor">
+        /// <param name="itemTypeCallback">
         /// A delegate that accepts the item type string and a list of items of that type.
         /// Will be called for each item type in the list.
         /// </param>
-        internal void EnumerateItemsPerType(Action<int> countVisitor, Action<string, IEnumerable<T>> itemTypeVisitor)
+        internal void EnumerateItemsPerType(Action<int> countCallback, Action<string, IEnumerable<T>> itemTypeCallback)
         {
             lock (_itemLists)
             {
@@ -194,7 +194,7 @@ namespace Microsoft.Build.Collections
                     count++;
                 }
 
-                countVisitor(count);
+                countCallback(count);
 
                 foreach (var itemTypeBucket in _itemLists)
                 {
@@ -204,7 +204,7 @@ namespace Microsoft.Build.Collections
                         continue;
                     }
 
-                    itemTypeVisitor(itemTypeBucket.Key, itemTypeBucket.Value);
+                    itemTypeCallback(itemTypeBucket.Key, itemTypeBucket.Value);
                 }
             }
         }
