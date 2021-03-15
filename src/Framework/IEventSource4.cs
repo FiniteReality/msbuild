@@ -11,8 +11,8 @@ namespace Microsoft.Build.Framework
     public interface IEventSource4 : IEventSource3
     {
         /// <summary>
-        /// Should properties and items be logged on <see cref="ProjectEvaluationFinishedEventArgs"/>
-        /// instead of <see cref="ProjectStartedEventArgs"/>?
+        /// Determines whether properties and items should be logged on <see cref="ProjectEvaluationFinishedEventArgs"/>
+        /// instead of <see cref="ProjectStartedEventArgs"/>.
         /// </summary>
         void IncludeEvaluationPropertiesAndItems();
     }
