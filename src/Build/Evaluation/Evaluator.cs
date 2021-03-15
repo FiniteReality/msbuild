@@ -813,7 +813,7 @@ namespace Microsoft.Build.Evaluation
 
         private IEnumerable<DictionaryEntry> GetItems()
         {
-            if (!!_evaluationLoggingContext.LoggingService.IncludeEvaluationPropertiesAndItems)
+            if (!_evaluationLoggingContext.LoggingService.IncludeEvaluationPropertiesAndItems)
             {
                 return Array.Empty<DictionaryEntry>();
             }
