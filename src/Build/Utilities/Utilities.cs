@@ -657,10 +657,7 @@ namespace Microsoft.Build.Internal
         {
             if (items is ItemDictionary<ProjectItemInstance> itemDictionary)
             {
-                itemDictionary.EnumerateItemsPerType(count =>
-                {
-                },
-                (itemType, itemList) =>
+                itemDictionary.EnumerateItemsPerType((itemType, itemList) =>
                 {
                     foreach (var item in itemList)
                     {
