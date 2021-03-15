@@ -745,7 +745,7 @@ namespace Microsoft.Build.Logging
             reusableItemsList.Clear();
         }
 
-        private readonly List<(string Key, ITaskItem Value)> reusableProjectItemList = new List<(string, ITaskItem)>();
+        private readonly List<(string Key, object Value)> reusableProjectItemList = new List<(string, object)>();
 
         private void WriteProjectItems(IEnumerable items)
         {
@@ -769,29 +769,10 @@ namespace Microsoft.Build.Logging
             }
             else
             {
-                foreach (var item in items)
+                Internal.Utilities.EnumerateItems(items, dictionaryEntry =>
                 {
-                    string itemType = default;
-
-                    if (item is IItem iitem)
-                    {
-                        itemType = iitem.Key;
-                    }
-                    else if (item is DictionaryEntry dictionaryEntry)
-                    {
-                        itemType = dictionaryEntry.Key as string;
-                    }
-                    else
-                    {
-                    }
-
-                    if (string.IsNullOrEmpty(itemType) || item is not ITaskItem taskItem)
-                    {
-                        continue;
-                    }
-
-                    reusableProjectItemList.Add((itemType, taskItem));
-                }
+                    reusableProjectItemList.Add((dictionaryEntry.Key as string, dictionaryEntry.Value));
+                });
 
                 var groups = reusableProjectItemList
                     .GroupBy(entry => entry.Key, entry => entry.Value)
@@ -845,28 +826,7 @@ namespace Microsoft.Build.Logging
                 return;
             }
 
-            if (properties is PropertyDictionary<ProjectPropertyInstance> propertyDictionary)
-            {
-                propertyDictionary.Enumerate(count => { },
-                (key, value) =>
-                {
-                    nameValueListBuffer.Add(new KeyValuePair<string, string>(key, value));
-                });
-            }
-            else
-            {
-                foreach (var item in properties)
-                {
-                    if (item is IProperty property && !string.IsNullOrEmpty(property.Name))
-                    {
-                        nameValueListBuffer.Add(new KeyValuePair<string, string>(property.Name, property.EvaluatedValue ?? string.Empty));
-                    }
-                    else if (item is DictionaryEntry dictionaryEntry && dictionaryEntry.Key is string key && !string.IsNullOrEmpty(key))
-                    {
-                        nameValueListBuffer.Add(new KeyValuePair<string, string>(key, dictionaryEntry.Value as string ?? string.Empty));
-                    }
-                }
-            }
+            Internal.Utilities.EnumerateProperties(properties, kvp => nameValueListBuffer.Add(kvp));
 
             WriteNameValueList();
 

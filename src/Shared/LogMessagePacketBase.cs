@@ -864,7 +864,7 @@ namespace Microsoft.Build.Shared
         private static List<KeyValuePair<string, string>> reusablePropertyList;
 
         [ThreadStatic]
-        private static List<IItem> reusableItemList;
+        private static List<(string itemType, object item)> reusableItemList;
 
         private void WriteProperties(IEnumerable properties, ITranslator translator)
         {
@@ -883,28 +883,7 @@ namespace Microsoft.Build.Shared
             // it is expensive to access a ThreadStatic field every time
             var list = reusablePropertyList;
 
-            if (properties is PropertyDictionary<ProjectPropertyInstance> propertyDictionary)
-            {
-                propertyDictionary.Enumerate(count => { },
-                (key, value) =>
-                {
-                    list.Add(new KeyValuePair<string, string>(key, value));
-                });
-            }
-            else
-            {
-                foreach (var item in properties)
-                {
-                    if (item is IProperty property && !string.IsNullOrEmpty(property.Name))
-                    {
-                        list.Add(new KeyValuePair<string, string>(property.Name, property.EvaluatedValue ?? string.Empty));
-                    }
-                    else if (item is DictionaryEntry dictionaryEntry && dictionaryEntry.Key is string key && !string.IsNullOrEmpty(key))
-                    {
-                        list.Add(new KeyValuePair<string, string>(key, dictionaryEntry.Value as string ?? string.Empty));
-                    }
-                }
-            }
+            Internal.Utilities.EnumerateProperties(properties, kvp => list.Add(kvp));
 
             BinaryWriterExtensions.Write7BitEncodedInt(writer, list.Count);
 
@@ -928,42 +907,31 @@ namespace Microsoft.Build.Shared
 
             if (reusableItemList == null)
             {
-                reusableItemList = new List<IItem>();
+                reusableItemList = new List<(string itemType, object item)>();
             }
 
             var list = reusableItemList;
 
-            if (items is ItemDictionary<ProjectItemInstance> itemDictionary)
+            Internal.Utilities.EnumerateItems(items, dictionaryEntry =>
             {
-                itemDictionary.EnumerateItemsPerType(count =>
-                {
-                },
-                (itemType, itemList) =>
-                {
-                    foreach (var i in itemList)
-                    {
-                        list.Add(i);
-                    }
-                });
-            }
-            else
-            {
-                foreach (var item in items)
-                {
-                    if (item is IItem iitem)
-                    {
-                        list.Add(iitem);
-                    }
-                }
-            }
+                list.Add((dictionaryEntry.Key as string, dictionaryEntry.Value));
+            });
 
             BinaryWriterExtensions.Write7BitEncodedInt(writer, list.Count);
 
-            foreach (var item in list)
+            foreach (var kvp in list)
             {
-                writer.Write(item.Key);
-                writer.Write(item.EvaluatedInclude);
-                WriteMetadata(item, writer);
+                writer.Write(kvp.itemType);
+                if (kvp.item is ITaskItem taskItem)
+                {
+                    writer.Write(taskItem.ItemSpec);
+                    WriteMetadata(taskItem, writer);
+                }
+                else
+                {
+                    writer.Write(kvp.item?.ToString() ?? "");
+                    writer.Write((byte)0);
+                }
             }
 
             list.Clear();

@@ -527,10 +527,9 @@ namespace Microsoft.Build.BackEnd.Logging
         {
             // Gather a sorted list of all the properties.
             var list = new List<DictionaryEntry>(properties.FastCountOrZero());
-            foreach (DictionaryEntry prop in properties)
-            {
-                list.Add(prop);
-            }
+
+            Internal.Utilities.EnumerateProperties(properties, kvp => list.Add(new DictionaryEntry(kvp.Key, kvp.Value)));
+
             list.Sort(new DictionaryEntryKeyComparer());
             return list;
         }
