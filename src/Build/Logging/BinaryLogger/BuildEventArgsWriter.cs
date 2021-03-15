@@ -681,7 +681,9 @@ namespace Microsoft.Build.Logging
             return flags;
         }
 
+        // Both of these are used simultaneously so can't just have a single list
         private readonly List<object> reusableItemsList = new List<object>();
+        private readonly List<object> reusableProjectItemList = new List<object>();
 
         private void WriteTaskItemList(IEnumerable items, bool writeMetadata = true)
         {
@@ -745,8 +747,6 @@ namespace Microsoft.Build.Logging
             reusableItemsList.Clear();
         }
 
-        private readonly List<(string Key, object Value)> reusableProjectItemList = new List<(string, object)>();
-
         private void WriteProjectItems(IEnumerable items)
         {
             if (items == null)
@@ -757,36 +757,57 @@ namespace Microsoft.Build.Logging
 
             if (items is ItemDictionary<ProjectItemInstance> itemDictionary)
             {
-                itemDictionary.EnumerateItemsPerType(count =>
-                {
-                    Write(count);
-                },
-                (itemType, itemList) =>
+                // If we have access to the live data from evaluation, it exposes a special method
+                // to iterate the data structure under a lock and return results grouped by item type.
+                // There's no need to allocate or call GroupBy this way.
+                itemDictionary.EnumerateItemsPerType((itemType, itemList) =>
                 {
                     WriteDeduplicatedString(itemType);
                     WriteTaskItemList(itemList);
                 });
+
+                // signal the end
+                Write(0);
             }
             else
             {
+                string currentItemType = null;
+
+                // Write out a sequence of items for each item type while avoiding GroupBy
+                // and associated allocations. We rely on the fact that items of each type
+                // are contiguous. For each item type, write the item type name and the list
+                // of items. Write 0 at the end (which would correspond to item type null).
+                // This is how the reader will know how to stop. We can't write out the
+                // count of item types at the beginning because we don't know how many there
+                // will be (we'd have to enumerate twice to calculate that). This scheme
+                // allows us to stream in a single pass with no allocations for intermediate
+                // results.
                 Internal.Utilities.EnumerateItems(items, dictionaryEntry =>
                 {
-                    reusableProjectItemList.Add((dictionaryEntry.Key as string, dictionaryEntry.Value));
+                    string key = (string)dictionaryEntry.Key;
+
+                    // boundary between item types
+                    if (currentItemType != null && currentItemType != key)
+                    {
+                        WriteDeduplicatedString(currentItemType);
+                        WriteTaskItemList(reusableProjectItemList);
+                        reusableProjectItemList.Clear();
+                    }
+
+                    reusableProjectItemList.Add(dictionaryEntry.Value);
+                    currentItemType = key;
                 });
 
-                var groups = reusableProjectItemList
-                    .GroupBy(entry => entry.Key, entry => entry.Value)
-                    .ToArray();
-
-                Write(groups.Length);
-
-                foreach (var group in groups)
+                // write out the last item type
+                if (reusableProjectItemList.Count > 0)
                 {
-                    WriteDeduplicatedString(group.Key);
-                    WriteTaskItemList(group);
+                    WriteDeduplicatedString(currentItemType);
+                    WriteTaskItemList(reusableProjectItemList);
+                    reusableProjectItemList.Clear();
                 }
 
-                reusableProjectItemList.Clear();
+                // signal the end
+                Write(0);
             }
         }
 

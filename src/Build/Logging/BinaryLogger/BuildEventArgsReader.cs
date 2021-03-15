@@ -962,12 +962,6 @@ namespace Microsoft.Build.Logging
 
         private IEnumerable ReadProjectItems()
         {
-            int count = ReadInt32();
-            if (count == 0)
-            {
-                return null;
-            }
-
             List<DictionaryEntry> list;
 
             // starting with format version 10 project items are grouped by name
@@ -976,6 +970,12 @@ namespace Microsoft.Build.Logging
             // old style flat list where the name is duplicated for each item.
             if (fileFormatVersion < 10)
             {
+                int count = ReadInt32();
+                if (count == 0)
+                {
+                    return null;
+                }
+
                 list = new List<DictionaryEntry>(count);
                 for (int i = 0; i < count; i++)
                 {
@@ -984,16 +984,41 @@ namespace Microsoft.Build.Logging
                     list.Add(new DictionaryEntry(itemName, item));
                 }
             }
-            else
+            else if (fileFormatVersion < 12)
             {
+                int count = ReadInt32();
+                if (count == 0)
+                {
+                    return null;
+                }
+
                 list = new List<DictionaryEntry>();
                 for (int i = 0; i < count; i++)
                 {
-                    string itemName = ReadDeduplicatedString();
+                    string itemType = ReadDeduplicatedString();
                     var items = ReadTaskItemList();
                     foreach (var item in items)
                     {
-                        list.Add(new DictionaryEntry(itemName, item));
+                        list.Add(new DictionaryEntry(itemType, item));
+                    }
+                }
+            }
+            else
+            {
+                list = new List<DictionaryEntry>();
+
+                while (true)
+                {
+                    string itemType = ReadDeduplicatedString();
+                    if (string.IsNullOrEmpty(itemType))
+                    {
+                        break;
+                    }
+
+                    var items = ReadTaskItemList();
+                    foreach (var item in items)
+                    {
+                        list.Add(new DictionaryEntry(itemType, item));
                     }
                 }
             }
