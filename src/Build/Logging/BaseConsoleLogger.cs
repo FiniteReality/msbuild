@@ -619,18 +619,19 @@ namespace Microsoft.Build.BackEnd.Logging
             // Use a SortedList instead of an ArrayList (because we need to lookup fast)
             // and instead of a Hashtable (because we need to sort it)
             SortedList itemTypes = new SortedList(CaseInsensitiveComparer.Default);
-            foreach (DictionaryEntry item in items)
+
+            Internal.Utilities.EnumerateItems(items, item =>
             {
-                // Create a new list for this itemtype, if we haven't already
-                if (itemTypes[(string)item.Key] == null)
+                string key = (string)item.Key;
+                var bucket = itemTypes[key] as ArrayList;
+                if (bucket == null)
                 {
-                    itemTypes[(string)item.Key] = new ArrayList();
+                    bucket = new ArrayList();
+                    itemTypes[key] = bucket;
                 }
 
-                // Add the item to the list for its itemtype
-                ArrayList itemsOfAType = (ArrayList)itemTypes[(string)item.Key];
-                itemsOfAType.Add(item.Value);
-            }
+                bucket.Add(item.Value);
+            });
 
             return itemTypes;
         }
