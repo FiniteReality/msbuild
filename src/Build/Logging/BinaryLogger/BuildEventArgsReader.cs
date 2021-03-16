@@ -997,9 +997,12 @@ namespace Microsoft.Build.Logging
                 {
                     string itemType = ReadDeduplicatedString();
                     var items = ReadTaskItemList();
-                    foreach (var item in items)
+                    if (items != null)
                     {
-                        list.Add(new DictionaryEntry(itemType, item));
+                        foreach (var item in items)
+                        {
+                            list.Add(new DictionaryEntry(itemType, item));
+                        }
                     }
                 }
             }
@@ -1016,9 +1019,12 @@ namespace Microsoft.Build.Logging
                     }
 
                     var items = ReadTaskItemList();
-                    foreach (var item in items)
+                    if (items != null)
                     {
-                        list.Add(new DictionaryEntry(itemType, item));
+                        foreach (var item in items)
+                        {
+                            list.Add(new DictionaryEntry(itemType, item));
+                        }
                     }
                 }
             }

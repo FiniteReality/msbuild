@@ -624,8 +624,7 @@ namespace Microsoft.Build.Internal
 
             if (properties is PropertyDictionary<ProjectPropertyInstance> propertyDictionary)
             {
-                propertyDictionary.Enumerate(count => { },
-                (key, value) =>
+                propertyDictionary.Enumerate((key, value) =>
                 {
                     callback(new KeyValuePair<string, string>(key, value));
                 });

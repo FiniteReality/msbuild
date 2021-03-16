@@ -508,12 +508,10 @@ namespace Microsoft.Build.Collections
             }
         }
 
-        internal void Enumerate(Action<int> countCallback, Action<string, string> keyValueCallback)
+        internal void Enumerate(Action<string, string> keyValueCallback)
         {
             lock (_properties)
             {
-                countCallback(_properties.Count);
-
                 foreach (var kvp in _properties)
                 {
                     keyValueCallback(kvp.Key, EscapingUtilities.UnescapeAll(kvp.EscapedValue));
