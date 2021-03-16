@@ -872,16 +872,18 @@ namespace Microsoft.Build.Logging
         private IEnumerable ReadPropertyList()
         {
             var properties = ReadStringDictionary();
-            if (properties == null)
+            if (properties == null || properties.Count == 0)
             {
                 return null;
             }
 
-            var list = new ArrayList();
+            int count = properties.Count;
+            var list = new DictionaryEntry[count];
+            int i = 0;
             foreach (var property in properties)
             {
-                var entry = new DictionaryEntry(property.Key, property.Value);
-                list.Add(entry);
+                list[i] = new DictionaryEntry(property.Key, property.Value);
+                i++;
             }
 
             return list;
@@ -962,7 +964,7 @@ namespace Microsoft.Build.Logging
 
         private IEnumerable ReadProjectItems()
         {
-            List<DictionaryEntry> list;
+            IList<DictionaryEntry> list;
 
             // starting with format version 10 project items are grouped by name
             // so we only have to write the name once, and then the count of items
@@ -976,12 +978,12 @@ namespace Microsoft.Build.Logging
                     return null;
                 }
 
-                list = new List<DictionaryEntry>(count);
+                list = new DictionaryEntry[count];
                 for (int i = 0; i < count; i++)
                 {
                     string itemName = ReadString();
                     ITaskItem item = ReadTaskItem();
-                    list.Add(new DictionaryEntry(itemName, item));
+                    list[i] = new DictionaryEntry(itemName, item);
                 }
             }
             else if (fileFormatVersion < 12)
