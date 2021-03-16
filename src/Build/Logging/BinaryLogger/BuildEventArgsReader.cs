@@ -645,7 +645,7 @@ namespace Microsoft.Build.Logging
                 kind,
                 itemType,
                 items,
-                true,
+                logItemMetadata: true,
                 fields.Timestamp);
             e.ProjectFile = fields.ProjectFile;
             return e;
