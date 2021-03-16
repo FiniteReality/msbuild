@@ -8,6 +8,7 @@ using Microsoft.Build.BackEnd;
 using Microsoft.Build.Framework;
 using Microsoft.Build.Framework.Profiler;
 using Microsoft.Build.Logging;
+using Microsoft.Build.Shared;
 using Xunit;
 
 namespace Microsoft.Build.UnitTests
@@ -348,10 +349,13 @@ namespace Microsoft.Build.UnitTests
         [Fact]
         public void RoundtripProjectEvaluationStartedEventArgs()
         {
-            var args = new ProjectEvaluationStartedEventArgs("Message")
+            var projectFile = @"C:\foo\bar.proj";
+            var args = new ProjectEvaluationStartedEventArgs(
+                ResourceUtilities.GetResourceString("EvaluationStarted"),
+                projectFile)
             {
                 BuildEventContext = BuildEventContext.Invalid,
-                ProjectFile = @"C:\foo\bar.proj",
+                ProjectFile = projectFile,
             };
 
             Roundtrip(args,
@@ -362,7 +366,10 @@ namespace Microsoft.Build.UnitTests
         [Fact]
         public void RoundtripProjectEvaluationFinishedEventArgs()
         {
-            var args = new ProjectEvaluationFinishedEventArgs("Message")
+            var projectFile = @"C:\foo\bar.proj";
+            var args = new ProjectEvaluationFinishedEventArgs(
+                ResourceUtilities.GetResourceString("EvaluationFinished"),
+                projectFile)
             {
                 BuildEventContext = BuildEventContext.Invalid,
                 ProjectFile = @"C:\foo\bar.proj",
@@ -376,7 +383,10 @@ namespace Microsoft.Build.UnitTests
         [Fact]
         public void RoundtripProjectEvaluationFinishedEventArgsWithProfileData()
         {
-            var args = new ProjectEvaluationFinishedEventArgs("Message")
+            var projectFile = @"C:\foo\bar.proj";
+            var args = new ProjectEvaluationFinishedEventArgs(
+                ResourceUtilities.GetResourceString("EvaluationFinished"),
+                projectFile)
             {
                 BuildEventContext = BuildEventContext.Invalid,
                 ProjectFile = @"C:\foo\bar.proj",
